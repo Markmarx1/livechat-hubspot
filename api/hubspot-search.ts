@@ -55,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'total_assets',
       'future_opportunity',
       'future_opportunity_notes',
+      'hs_pinned_engagement_id',
     ];
 
     const searchRes = await fetch(`${HUBSPOT_API}/crm/v3/objects/contacts/search`, {
@@ -82,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = (await searchRes.json()) as {
-      results?: Array<{ properties: Record<string, string | number | undefined> }>;
+      results?: Array<{ id: string; properties: Record<string, string | number | undefined> }>;
     };
 
     const results = (data.results || []).map((r) => {
@@ -91,6 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const last = (p.customer_last_name || p.lastname || '') as string;
       const name = [first, last].filter(Boolean).join(' ') || 'Unknown';
       return {
+        id: r.id,
         name,
         email: (p.email as string) || '',
         properties: p,

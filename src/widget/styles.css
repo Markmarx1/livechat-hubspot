@@ -443,3 +443,64 @@ body[data-theme="light"] .customer-info-loading {
   border-radius: 6px;
   font-size: 14px;
 }
+
+.contact-notes {
+  margin-top: 12px;
+  padding: 12px;
+  background: #e6e6e6;
+  color: #374965;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.notes-title {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notes-loading {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.note-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(55, 73, 101, 0.2);
+}
+
+.note-item:last-child {
+  border-bottom: none;
+}
+
+.note-pinned {
+  background: rgba(38, 194, 129, 0.15);
+  margin: 0 -12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-bottom: none;
+}
+
+.note-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #26c281;
+  margin-bottom: 4px;
+}
+
+.note-body {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-date {
+  font-size: 12px;
+  color: rgba(55, 73, 101, 0.7);
+}

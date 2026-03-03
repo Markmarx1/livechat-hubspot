@@ -142,9 +142,17 @@ interface ContactLookupProps {
 }
 
 interface HubSpotContact {
+  id?: string;
   name: string;
   email: string;
   properties: Record<string, string | number | undefined>;
+}
+
+interface HubSpotNote {
+  id: string;
+  body: string;
+  timestamp: string;
+  pinned?: boolean;
 }
 
 interface CustomerProfile {
@@ -167,6 +175,8 @@ function ContactLookup({ widget }: ContactLookupProps) {
   const [customerContact, setCustomerContact] = useState<HubSpotContact | null>(null);
   const [customerContactLoading, setCustomerContactLoading] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [notes, setNotes] = useState<{ pinned: HubSpotNote | null; recent: HubSpotNote[] } | null>(null);
+  const [notesLoading, setNotesLoading] = useState(false);
 
   const customerId = customerProfile?.id ?? null;
 
@@ -325,8 +335,42 @@ function ContactLookup({ widget }: ContactLookupProps) {
 
   const handleBackToList = () => {
     setSelectedContact(null);
+    setNotes(null);
     setError(null);
   };
+
+  // Fetch notes when viewing a contact with HubSpot id
+  useEffect(() => {
+    const contactId = selectedContact?.id;
+    if (!contactId) {
+      setNotes(null);
+      return;
+    }
+    let cancelled = false;
+    setNotesLoading(true);
+    setNotes(null);
+    const pinnedVal = selectedContact?.properties?.hs_pinned_engagement_id;
+    const pinnedId = pinnedVal != null ? String(pinnedVal).trim() || undefined : undefined;
+    fetch(`${API_BASE}/api/hubspot-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId, pinnedNoteId: pinnedId || undefined }),
+    })
+      .then((res) => res.text())
+      .then((text) => {
+        if (cancelled) return;
+        let data: { pinned?: HubSpotNote | null; recent?: HubSpotNote[] } = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { /* ignore */ }
+        setNotes({ pinned: data.pinned ?? null, recent: data.recent ?? [] });
+      })
+      .catch(() => {
+        if (!cancelled) setNotes({ pinned: null, recent: [] });
+      })
+      .finally(() => {
+        if (!cancelled) setNotesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedContact?.id]);
 
   if (selectedContact) {
     const props = selectedContact.properties || {};
@@ -381,6 +425,41 @@ function ContactLookup({ widget }: ContactLookupProps) {
               <p className="empty">No additional properties available.</p>
             )}
           </div>
+          {selectedContact.id && (
+            <div className="contact-notes">
+              <h4 className="notes-title">Notes</h4>
+              {notesLoading ? (
+                <p className="notes-loading">Loading notes...</p>
+              ) : notes ? (
+                <>
+                  {notes.pinned && (
+                    <div className="note-item note-pinned">
+                      <span className="note-badge">Pinned</span>
+                      <p className="note-body">{notes.pinned.body}</p>
+                      {notes.pinned.timestamp && (
+                        <span className="note-date">
+                          {new Date(notes.pinned.timestamp).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {notes.recent.map((n) => (
+                    <div key={n.id} className="note-item">
+                      <p className="note-body">{n.body}</p>
+                      {n.timestamp && (
+                        <span className="note-date">
+                          {new Date(n.timestamp).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {!notes.pinned && notes.recent.length === 0 && (
+                    <p className="empty">No notes for this contact.</p>
+                  )}
+                </>
+              ) : null}
+            </div>
+          )}
         </div>
         {error && <p className="error">{error}</p>}
       </div>
