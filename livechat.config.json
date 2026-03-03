@@ -1,5 +1,28 @@
 {
     "id": "3K0a3rdvR",
     "name": "Hubspot lookup",
-    "product": "livechat"
+    "product": "livechat",
+    "blocks": {
+        "authorization": {
+            "clientId": "0a418ea7727e9cdf83bede40816c5d95",
+            "type": "server_side_app",
+            "redirectUri": "https://hubspot-lookup-nest-egg.vercel.app"
+        },
+        "repository": {
+            "provider": "github",
+            "name": "Markmarx1/livechat-hubspot",
+            "branch": "main"
+        },
+        "deployment": {
+            "provider": "vercel",
+            "url": "https://hubspot-lookup-nest-egg.vercel.app"
+        },
+        "widgets": {
+            "xR5IOb_IF4": {
+                "url": "https://hubspot-lookup-eight.vercel.app",
+                "placement": "plugin",
+                "initialState": ""
+            }
+        }
+    }
 }
