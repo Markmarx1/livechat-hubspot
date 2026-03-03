@@ -11,7 +11,6 @@ const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
   ['firstname', 'First Name'],
   ['lastname', 'Last Name'],
   ['email', 'Email'],
-  ['addepar_contact_link', 'Addepar Contact Link'],
   ['date_of_birth', 'Date of birth'],
   ['security_question_1', 'Security Question 1'],
   ['security_answer_1', 'Security Answer 1'],
@@ -20,6 +19,7 @@ const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
   ['total_assets', 'Total assets'],
   ['future_opportunity', 'Future Opportunity'],
   ['future_opportunity_notes', 'Future opportunity notes'],
+  ['addepar_contact_link', 'Addepar Contact Link'],
 ];
 
 /** Mock widget for standalone/dev mode when not running inside LiveChat */
