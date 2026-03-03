@@ -114,14 +114,15 @@ body {
   flex-direction: column;
   align-items: flex-start;
   padding: 12px;
-  background: #868686;
-  color: #fff;
+  background: #b2b2b2;
+  color: #374965;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
+  font-size: 17px;
   transition: background 0.15s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
@@ -134,11 +135,12 @@ body {
   display: block;
   margin-bottom: 4px;
   font-weight: 700;
+  font-size: 19px;
 }
 
 .contact-item span {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  color: #374965;
 }
 
 .contact-item-meta {
@@ -146,12 +148,12 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  color: #374965;
 }
 
 .contact-item-meta span {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* Contact detail view */
@@ -189,8 +191,8 @@ body {
 }
 
 .contact-properties {
-  background: #868686;
-  color: #fff;
+  background: #b2b2b2;
+  color: #374965;
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 12px;
@@ -202,7 +204,7 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(55, 73, 101, 0.3);
 }
 
 .property-row:last-child {
@@ -210,23 +212,24 @@ body {
 }
 
 .property-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: #374965;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .property-value {
-  font-size: 16px;
+  font-size: 17px;
+  color: #374965;
 }
 
 .property-value a {
-  color: #a8d5e5;
+  color: #374965;
   word-break: break-all;
 }
 
 .property-value a:hover {
-  color: #c5e5f0;
+  color: #2a3847;
 }
 
 .update-button {
