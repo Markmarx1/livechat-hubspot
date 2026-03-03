@@ -166,6 +166,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
   const [customerContact, setCustomerContact] = useState<HubSpotContact | null>(null);
   const [customerContactLoading, setCustomerContactLoading] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
 
   const customerId = customerProfile?.id ?? null;
 
@@ -188,6 +189,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     setContacts([]);
     setSelectedContact(null);
     setError(null);
+    setUpdateSuccess(false);
     // Restore from cache if we have it for this customer
     if (customerId) {
       const cached = contactCache.get(customerId);
@@ -306,7 +308,14 @@ function ContactLookup({ widget }: ContactLookupProps) {
         try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
         throw new Error(data.message || data.error || text || 'Failed to update customer');
       }
-      try { window.parent.location.reload(); } catch { window.location.reload(); }
+      setUpdateSuccess(true);
+      setError(null);
+      setCustomerProfile((prev) =>
+        prev ? { ...prev, name: selectedContact.name, email: selectedContact.email } : null
+      );
+      contactCache.set(targetCustomerId, selectedContact);
+      setCustomerContact(selectedContact);
+      setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
     } finally {
@@ -336,14 +345,19 @@ function ContactLookup({ widget }: ContactLookupProps) {
             <p className="contact-detail-email">{selectedContact.email}</p>
           )}
           {customerId && (
-            <button
-              type="button"
-              className="update-button"
-              onClick={handleUpdateVisitor}
-              disabled={updating}
-            >
-              {updating ? 'Updating...' : 'Update visitor in LiveChat'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="update-button"
+                onClick={handleUpdateVisitor}
+                disabled={updating}
+              >
+                {updating ? 'Updating...' : 'Update visitor in LiveChat'}
+              </button>
+              {updateSuccess && (
+                <p className="update-success">Updated! Customer details have been saved.</p>
+              )}
+            </>
           )}
           <div className="contact-properties">
             {displayProps.map(([key, label]) => {

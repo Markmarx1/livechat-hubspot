@@ -434,3 +434,12 @@ body[data-theme="light"] .customer-info-loading {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.update-success {
+  margin: 0 0 12px 0;
+  padding: 8px 12px;
+  background: #26c281;
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+}
