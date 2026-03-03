@@ -496,8 +496,50 @@ body[data-theme="light"] .customer-info-loading {
 .note-body {
   margin: 0 0 4px 0;
   font-size: 15px;
-  white-space: pre-wrap;
+  line-height: 1.5;
   word-break: break-word;
+}
+
+.note-body p {
+  margin: 0 0 8px 0;
+}
+
+.note-body p:last-child {
+  margin-bottom: 0;
+}
+
+.note-body strong {
+  font-weight: 700;
+}
+
+.note-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.note-body td {
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+}
+
+.note-body td:first-child {
+  white-space: nowrap;
+  color: rgba(55, 73, 101, 0.8);
+}
+
+.note-body div {
+  margin-bottom: 4px;
+}
+
+.note-body a {
+  color: #374965;
+  word-break: break-all;
+}
+
+.note-body a:hover {
+  text-decoration: underline;
 }
 
 .note-date {

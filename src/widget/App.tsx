@@ -435,7 +435,10 @@ function ContactLookup({ widget }: ContactLookupProps) {
                   {notes.pinned && (
                     <div className="note-item note-pinned">
                       <span className="note-badge">Pinned</span>
-                      <p className="note-body">{notes.pinned.body}</p>
+                      <div
+                        className="note-body"
+                        dangerouslySetInnerHTML={{ __html: notes.pinned.body || '' }}
+                      />
                       {notes.pinned.timestamp && (
                         <span className="note-date">
                           {new Date(notes.pinned.timestamp).toLocaleDateString()}
@@ -445,7 +448,10 @@ function ContactLookup({ widget }: ContactLookupProps) {
                   )}
                   {notes.recent.map((n) => (
                     <div key={n.id} className="note-item">
-                      <p className="note-body">{n.body}</p>
+                      <div
+                        className="note-body"
+                        dangerouslySetInnerHTML={{ __html: n.body || '' }}
+                      />
                       {n.timestamp && (
                         <span className="note-date">
                           {new Date(n.timestamp).toLocaleDateString()}
