@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createDetailsWidget } from '@livechat/agent-app-sdk';
 import type { IDetailsWidget } from '@livechat/agent-app-sdk';
 
@@ -242,7 +242,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     return () => { cancelled = true; };
   }, [customerId, customerProfile?.email]);
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
     setLoading(true);
     setError(null);
@@ -265,7 +265,18 @@ function ContactLookup({ widget }: ContactLookupProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query]);
+
+  // Auto-search when user types 4+ characters (debounced), then on each additional character
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 4) {
+      setContacts([]);
+      return;
+    }
+    const t = setTimeout(() => handleSearch(), 300);
+    return () => clearTimeout(t);
+  }, [query, handleSearch]);
 
   const handleSelectContact = (contact: HubSpotContact) => {
     setSelectedContact(contact);
@@ -295,7 +306,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
         try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
         throw new Error(data.message || data.error || text || 'Failed to update customer');
       }
-      window.location.reload();
+      try { window.parent.location.reload(); } catch { window.location.reload(); }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
     } finally {
@@ -324,6 +335,16 @@ function ContactLookup({ widget }: ContactLookupProps) {
           {selectedContact.email && (
             <p className="contact-detail-email">{selectedContact.email}</p>
           )}
+          {customerId && (
+            <button
+              type="button"
+              className="update-button"
+              onClick={handleUpdateVisitor}
+              disabled={updating}
+            >
+              {updating ? 'Updating...' : 'Update visitor in LiveChat'}
+            </button>
+          )}
           <div className="contact-properties">
             {displayProps.map(([key, label]) => {
               const val = props[key];
@@ -346,16 +367,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
               <p className="empty">No additional properties available.</p>
             )}
           </div>
-          {customerId && (
-            <button
-              type="button"
-              className="update-button"
-              onClick={handleUpdateVisitor}
-              disabled={updating}
-            >
-              {updating ? 'Updating...' : 'Update visitor in LiveChat'}
-            </button>
-          )}
         </div>
         {error && <p className="error">{error}</p>}
       </div>
@@ -402,7 +413,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
       <div className="search-box">
         <input
           type="text"
-          placeholder="Search by name..."
+          placeholder="Search by name (4+ characters)..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

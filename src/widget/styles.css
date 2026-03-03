@@ -415,6 +415,7 @@ body[data-theme="light"] .customer-info-loading {
 .update-button {
   width: 100%;
   padding: 10px 16px;
+  margin-bottom: 12px;
   background: #26c281;
   color: white;
   border: none;
