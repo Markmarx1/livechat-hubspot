@@ -295,6 +295,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
         try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
         throw new Error(data.message || data.error || text || 'Failed to update customer');
       }
+      window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
     } finally {
