@@ -4,6 +4,10 @@ import type { IDetailsWidget } from '@livechat/agent-app-sdk';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+/** True if value is known and should be displayed */
+const hasKnownValue = (v: unknown): boolean =>
+  v != null && String(v).trim() !== '';
+
 /** Contact properties to display when selected, in order */
 const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
   ['customer_first_name', 'Customer First Name'],
@@ -11,6 +15,8 @@ const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
   ['firstname', 'First Name'],
   ['lastname', 'Last Name'],
   ['email', 'Email'],
+  ['bd_client', 'BD Client'],
+  ['ia_client', 'IA Client'],
   ['date_of_birth', 'Date of birth'],
   ['security_question_1', 'Security Question 1'],
   ['security_answer_1', 'Security Answer 1'],
@@ -180,7 +186,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
   if (selectedContact) {
     const props = selectedContact.properties || {};
     const displayProps = CONTACT_PROPERTY_DISPLAY.filter(
-      ([key]) => props[key] !== undefined && props[key] !== null && props[key] !== ''
+      ([key]) => hasKnownValue(props[key])
     );
 
     return (
@@ -262,6 +268,16 @@ function ContactLookup({ widget }: ContactLookupProps) {
           >
             <strong>{c.name}</strong>
             <span>{c.email}</span>
+            {(hasKnownValue(c.properties?.bd_client) || hasKnownValue(c.properties?.ia_client)) && (
+              <span className="contact-item-meta">
+                {hasKnownValue(c.properties?.bd_client) && (
+                  <span>BD Client: {String(c.properties?.bd_client)}</span>
+                )}
+                {hasKnownValue(c.properties?.ia_client) && (
+                  <span>IA Client: {String(c.properties?.ia_client)}</span>
+                )}
+              </span>
+            )}
           </button>
         ))}
       </div>

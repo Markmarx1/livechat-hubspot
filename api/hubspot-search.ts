@@ -44,6 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'email',
       'customer_first_name',
       'customer_last_name',
+      'bd_client',
+      'ia_client',
       'addepar_contact_link',
       'date_of_birth',
       'security_question_1',
