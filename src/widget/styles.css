@@ -203,6 +203,75 @@ body[data-theme="light"] .hint {
   border-radius: 6px;
 }
 
+.customer-info-section {
+  margin-bottom: 12px;
+}
+
+.customer-info-loading {
+  margin: 0;
+  font-size: 14px;
+  color: #999;
+}
+
+.customer-info-card {
+  background: #e6e6e6;
+  color: #374965;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.customer-info-title {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.customer-info-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.customer-info-detail strong {
+  font-size: 17px;
+}
+
+.customer-info-detail span {
+  font-size: 15px;
+}
+
+.customer-info-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.customer-info-expand {
+  background: none;
+  border: none;
+  color: #374965;
+  font-size: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.customer-info-expand:hover {
+  color: #2a3847;
+}
+
+body[data-theme="light"] .customer-info-loading {
+  color: #666;
+}
+
 .error {
   color: #dc3545;
   font-size: 14px;

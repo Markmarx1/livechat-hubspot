@@ -147,6 +147,12 @@ interface HubSpotContact {
   properties: Record<string, string | number | undefined>;
 }
 
+interface CustomerProfile {
+  id: string;
+  name?: string;
+  email?: string;
+}
+
 function ContactLookup({ widget }: ContactLookupProps) {
   const [query, setQuery] = useState('');
   const [contacts, setContacts] = useState<HubSpotContact[]>([]);
@@ -154,17 +160,66 @@ function ContactLookup({ widget }: ContactLookupProps) {
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [customerContact, setCustomerContact] = useState<HubSpotContact | null>(null);
+  const [customerContactLoading, setCustomerContactLoading] = useState(false);
 
-  // Get current chat's customer ID (required for update_customer)
+  const customerId = customerProfile?.id ?? null;
+
+  // Get current chat's customer profile
   useEffect(() => {
-    const profile = widget.getCustomerProfile();
-    setCustomerId(profile?.id ?? null);
+    const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
+    setCustomerProfile(profile ? { id: profile.id, name: profile.name, email: profile.email } : null);
 
-    const handler = () => setCustomerId(widget.getCustomerProfile()?.id ?? null);
+    const handler = () => {
+      const p = widget.getCustomerProfile() as CustomerProfile | undefined;
+      setCustomerProfile(p ? { id: p.id, name: p.name, email: p.email } : null);
+    };
     widget.on('customer_profile', handler);
     return () => widget.off('customer_profile', handler);
   }, [widget]);
+
+  // Reset search/contact state when switching to a different chat
+  useEffect(() => {
+    setQuery('');
+    setContacts([]);
+    setSelectedContact(null);
+    setCustomerContact(null);
+    setError(null);
+  }, [customerId]);
+
+  // Auto-fetch HubSpot contact when customer has email
+  useEffect(() => {
+    const email = customerProfile?.email?.trim();
+    if (!email) {
+      setCustomerContact(null);
+      return;
+    }
+    let cancelled = false;
+    setCustomerContactLoading(true);
+    setCustomerContact(null);
+    fetch(`${API_BASE}/api/hubspot-search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: email }),
+    })
+      .then((res) => res.text())
+      .then((text) => {
+        if (cancelled) return;
+        let data: { results?: HubSpotContact[] } = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { /* ignore */ }
+        const results = data.results || [];
+        const match = results.find((r) => r.email?.toLowerCase() === email.toLowerCase()) ?? results[0];
+        setCustomerContact(match || null);
+      })
+      .catch(() => {
+        if (!cancelled) setCustomerContact(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCustomerContactLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [customerId, customerProfile?.email]);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -286,6 +341,38 @@ function ContactLookup({ widget }: ContactLookupProps) {
     <div className="contact-lookup">
       {!customerId && (
         <p className="hint">Open a chat to update the visitor&apos;s name and email from HubSpot.</p>
+      )}
+      {customerId && customerProfile?.email && (
+        <div className="customer-info-section">
+          {customerContactLoading ? (
+            <p className="customer-info-loading">Loading client info...</p>
+          ) : customerContact ? (
+            <div className="customer-info-card">
+              <h4 className="customer-info-title">Client info</h4>
+              <div className="customer-info-detail">
+                <strong>{customerContact.name}</strong>
+                {customerContact.email && <span>{customerContact.email}</span>}
+              </div>
+              {(hasKnownValue(customerContact.properties?.bd_client) || hasKnownValue(customerContact.properties?.ia_client)) && (
+                <div className="customer-info-meta">
+                  {hasKnownValue(customerContact.properties?.bd_client) && (
+                    <span>BD Client: {String(customerContact.properties?.bd_client)}</span>
+                  )}
+                  {hasKnownValue(customerContact.properties?.ia_client) && (
+                    <span>IA Client: {String(customerContact.properties?.ia_client)}</span>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                className="customer-info-expand"
+                onClick={() => handleSelectContact(customerContact)}
+              >
+                View full details
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
       <div className="search-box">
         <input
