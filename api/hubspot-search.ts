@@ -38,6 +38,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
+    const properties = [
+      'firstname',
+      'lastname',
+      'email',
+      'customer_first_name',
+      'customer_last_name',
+      'addepar_contact_link',
+      'date_of_birth',
+      'security_question_1',
+      'security_answer_1',
+      'security_question_2',
+      'security_answer_2',
+      'total_assets',
+      'future_opportunity',
+      'future_opportunity_notes',
+    ];
+
     const searchRes = await fetch(`${HUBSPOT_API}/crm/v3/objects/contacts/search`, {
       method: 'POST',
       headers: {
@@ -46,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       body: JSON.stringify({
         query: query.trim(),
-        properties: ['firstname', 'lastname', 'email'],
+        properties,
         limit: 20,
       }),
     });
@@ -63,17 +80,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = (await searchRes.json()) as {
-      results?: Array<{ properties: { firstname?: string; lastname?: string; email?: string } }>;
+      results?: Array<{ properties: Record<string, string | number | undefined> }>;
     };
 
     const results = (data.results || []).map((r) => {
       const p = r.properties || {};
-      const first = p.firstname || '';
-      const last = p.lastname || '';
+      const first = (p.customer_first_name || p.firstname || '') as string;
+      const last = (p.customer_last_name || p.lastname || '') as string;
       const name = [first, last].filter(Boolean).join(' ') || 'Unknown';
       return {
         name,
-        email: p.email || '',
+        email: (p.email as string) || '',
+        properties: p,
       };
     });
 

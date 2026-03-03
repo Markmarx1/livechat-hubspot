@@ -4,6 +4,24 @@ import type { IDetailsWidget } from '@livechat/agent-app-sdk';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+/** Contact properties to display when selected, in order */
+const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
+  ['customer_first_name', 'Customer First Name'],
+  ['customer_last_name', 'Customer Last Name'],
+  ['firstname', 'First Name'],
+  ['lastname', 'Last Name'],
+  ['email', 'Email'],
+  ['addepar_contact_link', 'Addepar Contact Link'],
+  ['date_of_birth', 'Date of birth'],
+  ['security_question_1', 'Security Question 1'],
+  ['security_answer_1', 'Security Answer 1'],
+  ['security_question_2', 'Security Question 2'],
+  ['security_answer_2', 'Security Answer 2'],
+  ['total_assets', 'Total assets'],
+  ['future_opportunity', 'Future Opportunity'],
+  ['future_opportunity_notes', 'Future opportunity notes'],
+];
+
 /** Mock widget for standalone/dev mode when not running inside LiveChat */
 function createMockWidget(): IDetailsWidget {
   return {
@@ -72,9 +90,16 @@ interface ContactLookupProps {
   widget: IDetailsWidget;
 }
 
+interface HubSpotContact {
+  name: string;
+  email: string;
+  properties: Record<string, string | number | undefined>;
+}
+
 function ContactLookup({ widget }: ContactLookupProps) {
   const [query, setQuery] = useState('');
-  const [contacts, setContacts] = useState<Array<{ name: string; email: string }>>([]);
+  const [contacts, setContacts] = useState<HubSpotContact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<HubSpotContact | null>(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +131,8 @@ function ContactLookup({ widget }: ContactLookupProps) {
       if (!res.ok) {
         throw new Error(data.message || data.error || text || 'Search failed');
       }
-      setContacts((data.results as Array<{ name: string; email: string }>) || []);
+      setContacts((data.results as HubSpotContact[]) || []);
+      setSelectedContact(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed. Connect HubSpot (see CONFIGURE_HUBSPOT.md).');
     } finally {
@@ -114,11 +140,13 @@ function ContactLookup({ widget }: ContactLookupProps) {
     }
   };
 
-  const handleSelectContact = async (contact: { name: string; email: string }) => {
-    if (!customerId) {
-      setError('Open a chat to update the visitor\'s name and email.');
-      return;
-    }
+  const handleSelectContact = (contact: HubSpotContact) => {
+    setSelectedContact(contact);
+    setError(null);
+  };
+
+  const handleUpdateVisitor = async () => {
+    if (!selectedContact || !customerId) return;
     setUpdating(true);
     setError(null);
     try {
@@ -127,8 +155,8 @@ function ContactLookup({ widget }: ContactLookupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId,
-          name: contact.name,
-          email: contact.email,
+          name: selectedContact.name,
+          email: selectedContact.email,
         }),
       });
       if (!res.ok) {
@@ -143,6 +171,65 @@ function ContactLookup({ widget }: ContactLookupProps) {
       setUpdating(false);
     }
   };
+
+  const handleBackToList = () => {
+    setSelectedContact(null);
+    setError(null);
+  };
+
+  if (selectedContact) {
+    const props = selectedContact.properties || {};
+    const displayProps = CONTACT_PROPERTY_DISPLAY.filter(
+      ([key]) => props[key] !== undefined && props[key] !== null && props[key] !== ''
+    );
+
+    return (
+      <div className="contact-lookup">
+        <button type="button" className="back-button" onClick={handleBackToList}>
+          ← Back to list
+        </button>
+        <div className="contact-detail">
+          <h3 className="contact-detail-name">{selectedContact.name}</h3>
+          {selectedContact.email && (
+            <p className="contact-detail-email">{selectedContact.email}</p>
+          )}
+          <div className="contact-properties">
+            {displayProps.map(([key, label]) => {
+              const val = props[key];
+              return (
+              <div key={key} className="property-row">
+                <span className="property-label">{label}</span>
+                <span className="property-value">
+                  {key === 'addepar_contact_link' && val ? (
+                    <a href={String(val)} target="_blank" rel="noopener noreferrer">
+                      {String(val)}
+                    </a>
+                  ) : (
+                    String(val ?? '')
+                  )}
+                </span>
+              </div>
+            );
+            })}
+            {displayProps.length === 0 && (
+              <p className="empty">No additional properties available.</p>
+            )}
+          </div>
+          {customerId && (
+            <button
+              type="button"
+              className="update-button"
+              onClick={handleUpdateVisitor}
+              disabled={updating}
+            >
+              {updating ? 'Updating...' : 'Update visitor in LiveChat'}
+            </button>
+          )}
+        </div>
+        {error && <p className="error">{error}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="contact-lookup">
@@ -166,13 +253,12 @@ function ContactLookup({ widget }: ContactLookupProps) {
         {contacts.length === 0 && !loading && query && !error && (
           <p className="empty">No contacts found.</p>
         )}
-        {contacts.map((c) => (
+        {contacts.map((c, i) => (
           <button
-            key={c.email}
+            key={`${c.email}-${c.name}-${i}`}
             type="button"
             className="contact-item"
             onClick={() => handleSelectContact(c)}
-            disabled={!customerId || updating}
           >
             <strong>{c.name}</strong>
             <span>{c.email}</span>

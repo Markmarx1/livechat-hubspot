@@ -130,3 +130,90 @@ body {
   font-size: 12px;
   color: #666;
 }
+
+/* Contact detail view */
+.back-button {
+  margin-bottom: 12px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.contact-detail {
+  padding: 0;
+}
+
+.contact-detail-name {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.contact-detail-email {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.contact-properties {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.property-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.property-row:last-child {
+  border-bottom: none;
+}
+
+.property-label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.property-value {
+  font-size: 14px;
+}
+
+.property-value a {
+  color: #007bff;
+  word-break: break-all;
+}
+
+.update-button {
+  width: 100%;
+  padding: 10px 16px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.update-button:hover:not(:disabled) {
+  background: #218838;
+}
+
+.update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
