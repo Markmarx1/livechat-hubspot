@@ -153,6 +153,9 @@ interface CustomerProfile {
   email?: string;
 }
 
+/** Cache HubSpot contact by customer ID for persistence when switching chats */
+const contactCache = new Map<string, HubSpotContact>();
+
 function ContactLookup({ widget }: ContactLookupProps) {
   const [query, setQuery] = useState('');
   const [contacts, setContacts] = useState<HubSpotContact[]>([]);
@@ -179,20 +182,33 @@ function ContactLookup({ widget }: ContactLookupProps) {
     return () => widget.off('customer_profile', handler);
   }, [widget]);
 
-  // Reset search/contact state when switching to a different chat
+  // Reset search/contact state when switching to a different chat (but keep cached contact)
   useEffect(() => {
     setQuery('');
     setContacts([]);
     setSelectedContact(null);
-    setCustomerContact(null);
     setError(null);
+    // Restore from cache if we have it for this customer
+    if (customerId) {
+      const cached = contactCache.get(customerId);
+      setCustomerContact(cached ?? null);
+    } else {
+      setCustomerContact(null);
+    }
   }, [customerId]);
 
-  // Auto-fetch HubSpot contact when customer has email
+  // Auto-fetch HubSpot contact when customer has email (cache for persistence)
   useEffect(() => {
     const email = customerProfile?.email?.trim();
-    if (!email) {
-      setCustomerContact(null);
+    const cid = customerId;
+    if (!email || !cid) {
+      if (!cid) setCustomerContact(null);
+      return;
+    }
+    const cached = contactCache.get(cid);
+    if (cached) {
+      setCustomerContact(cached);
+      setCustomerContactLoading(false);
       return;
     }
     let cancelled = false;
@@ -210,7 +226,12 @@ function ContactLookup({ widget }: ContactLookupProps) {
         try { data = text ? JSON.parse(text) : {}; } catch { /* ignore */ }
         const results = data.results || [];
         const match = results.find((r) => r.email?.toLowerCase() === email.toLowerCase()) ?? results[0];
-        setCustomerContact(match || null);
+        if (match) {
+          contactCache.set(cid, match);
+          setCustomerContact(match);
+        } else {
+          setCustomerContact(null);
+        }
       })
       .catch(() => {
         if (!cancelled) setCustomerContact(null);
@@ -252,7 +273,10 @@ function ContactLookup({ widget }: ContactLookupProps) {
   };
 
   const handleUpdateVisitor = async () => {
-    if (!selectedContact || !customerId) return;
+    if (!selectedContact) return;
+    const currentProfile = widget.getCustomerProfile() as CustomerProfile | undefined;
+    const targetCustomerId = currentProfile?.id;
+    if (!targetCustomerId) return;
     setUpdating(true);
     setError(null);
     try {
@@ -260,7 +284,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId,
+          customerId: targetCustomerId,
           name: selectedContact.name,
           email: selectedContact.email,
         }),
