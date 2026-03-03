@@ -7,8 +7,8 @@ body {
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
   font-size: 16px;
-  color: #333;
-  background: #fff;
+  color: #fff;
+  background: #202024;
 }
 
 .app {
@@ -19,7 +19,7 @@ body {
 .loading {
   padding: 24px;
   text-align: center;
-  color: #666;
+  color: #fff;
   font-size: 18px;
 }
 
@@ -36,7 +36,7 @@ body {
 .subtitle {
   margin: 0;
   font-size: 14px;
-  color: #666;
+  color: #fff;
 }
 
 .search-box {
@@ -48,11 +48,17 @@ body {
 .search-box input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #444;
   border-radius: 6px;
   font-size: 16px;
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
+  background: #2a2a2e;
+  color: #fff;
+}
+
+.search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .search-box input:focus {
@@ -82,11 +88,11 @@ body {
 }
 
 .hint {
-  color: #666;
+  color: #fff;
   font-size: 14px;
   margin: 0 0 12px 0;
   padding: 8px 12px;
-  background: #e9ecef;
+  background: #2a2a2e;
   border-radius: 6px;
 }
 
@@ -97,7 +103,7 @@ body {
 }
 
 .empty {
-  color: #666;
+  color: #fff;
   font-size: 15px;
   padding: 16px;
   text-align: center;
@@ -162,7 +168,7 @@ body {
   padding: 6px 0;
   background: none;
   border: none;
-  color: #374965;
+  color: #fff;
   font-size: 15px;
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
@@ -187,7 +193,7 @@ body {
 .contact-detail-email {
   margin: 0 0 12px 0;
   font-size: 15px;
-  color: #666;
+  color: #fff;
 }
 
 .contact-properties {
