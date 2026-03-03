@@ -4,8 +4,9 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  font-size: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
+  font-size: 16px;
   color: #333;
   background: #fff;
 }
@@ -19,6 +20,7 @@ body {
   padding: 24px;
   text-align: center;
   color: #666;
+  font-size: 18px;
 }
 
 .header {
@@ -27,13 +29,13 @@ body {
 
 .header h2 {
   margin: 0 0 4px 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 700;
 }
 
 .subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: #666;
 }
 
@@ -48,26 +50,30 @@ body {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #374965;
 }
 
 .search-box button {
   padding: 8px 16px;
-  background: #007bff;
+  background: #374965;
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
   cursor: pointer;
 }
 
 .search-box button:hover:not(:disabled) {
-  background: #0056b3;
+  background: #2a3847;
 }
 
 .search-box button:disabled {
@@ -77,22 +83,22 @@ body {
 
 .hint {
   color: #666;
-  font-size: 12px;
+  font-size: 14px;
   margin: 0 0 12px 0;
   padding: 8px 12px;
-  background: #f8f9fa;
+  background: #e9ecef;
   border-radius: 6px;
 }
 
 .error {
   color: #dc3545;
-  font-size: 12px;
+  font-size: 14px;
   margin: 0 0 12px 0;
 }
 
 .empty {
   color: #666;
-  font-size: 13px;
+  font-size: 15px;
   padding: 16px;
   text-align: center;
 }
@@ -108,27 +114,31 @@ body {
   flex-direction: column;
   align-items: flex-start;
   padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #868686;
+  color: #fff;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
-  font: inherit;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
   transition: background 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .contact-item:hover {
-  background: #e9ecef;
+  background: #26c281;
 }
 
 .contact-item strong {
   display: block;
   margin-bottom: 4px;
+  font-weight: 700;
 }
 
 .contact-item span {
-  font-size: 12px;
-  color: #666;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .contact-item-meta {
@@ -136,12 +146,12 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
-  font-size: 11px;
-  color: #555;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .contact-item-meta span {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 /* Contact detail view */
@@ -150,8 +160,10 @@ body {
   padding: 6px 0;
   background: none;
   border: none;
-  color: #007bff;
-  font-size: 13px;
+  color: #374965;
+  font-size: 15px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
   cursor: pointer;
   text-align: left;
 }
@@ -166,21 +178,23 @@ body {
 
 .contact-detail-name {
   margin: 0 0 4px 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .contact-detail-email {
   margin: 0 0 12px 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #666;
 }
 
 .contact-properties {
-  background: #f8f9fa;
+  background: #868686;
+  color: #fff;
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .property-row {
@@ -188,7 +202,7 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 8px 0;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .property-row:last-child {
@@ -196,34 +210,40 @@ body {
 }
 
 .property-label {
-  font-size: 11px;
-  color: #666;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .property-value {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .property-value a {
-  color: #007bff;
+  color: #a8d5e5;
   word-break: break-all;
+}
+
+.property-value a:hover {
+  color: #c5e5f0;
 }
 
 .update-button {
   width: 100%;
   padding: 10px 16px;
-  background: #28a745;
+  background: #26c281;
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
   cursor: pointer;
 }
 
 .update-button:hover:not(:disabled) {
-  background: #218838;
+  background: #20a96d;
 }
 
 .update-button:disabled {
