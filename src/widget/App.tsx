@@ -47,10 +47,26 @@ function createMockWidget(): IDetailsWidget {
  * - Display name, email, and configurable properties
  * - On select: update the visitor's name and email in LiveChat (customer properties) via update_customer API
  */
+const THEME_KEY = 'hubspot-lookup-theme';
+
 function App() {
   const [widget, setWidget] = useState<IDetailsWidget | null>(null);
   const [ready, setReady] = useState(false);
   const [standalone, setStandalone] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) !== 'light';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    document.body.dataset.theme = darkMode ? 'dark' : 'light';
+    try {
+      localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
+    } catch { /* ignore */ }
+  }, [darkMode]);
 
   useEffect(() => {
     const timeout = new Promise<never>((_, reject) =>
@@ -72,16 +88,45 @@ function App() {
   }, []);
 
   if (!ready) {
-    return <div className="loading">Connecting to LiveChat...</div>;
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="header-content">
+            <h2>HubSpot Contact Lookup</h2>
+          </div>
+          <label className="theme-toggle" title={darkMode ? 'Dark mode' : 'Light mode'}>
+            <input
+              type="checkbox"
+              checked={darkMode}
+              onChange={(e) => setDarkMode(e.target.checked)}
+              aria-label="Toggle dark mode"
+            />
+            <span className="theme-slider" />
+          </label>
+        </header>
+        <div className="loading">Connecting to LiveChat...</div>
+      </div>
+    );
   }
 
   return (
     <div className="app">
       <header className="header">
-        <h2>HubSpot Contact Lookup</h2>
-        <p className="subtitle">
-          {standalone ? 'Dev mode — install in LiveChat to use with real chats' : 'Search and insert contact details'}
-        </p>
+        <div className="header-content">
+          <h2>HubSpot Contact Lookup</h2>
+          <p className="subtitle">
+            {standalone ? 'Dev mode — install in LiveChat to use with real chats' : 'Search and insert contact details'}
+          </p>
+        </div>
+        <label className="theme-toggle" title={darkMode ? 'Dark mode' : 'Light mode'}>
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onChange={(e) => setDarkMode(e.target.checked)}
+            aria-label="Toggle dark mode"
+          />
+          <span className="theme-slider" />
+        </label>
       </header>
       <main className="main">
         {widget && (

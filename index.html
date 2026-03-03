@@ -8,7 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;700&display=swap" rel="stylesheet" />
     <title>HubSpot Contact Lookup</title>
   </head>
-  <body>
+  <body data-theme="dark">
+    <script>
+      try {
+        if (localStorage.getItem('hubspot-lookup-theme') === 'light') {
+          document.body.dataset.theme = 'light';
+        }
+      } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/widget/main.tsx"></script>
   </body>

@@ -7,8 +7,68 @@ body {
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
   font-size: 16px;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Dark theme (default) */
+body[data-theme="dark"] {
   color: #fff;
   background: #202024;
+}
+
+body[data-theme="dark"] .loading,
+body[data-theme="dark"] .subtitle,
+body[data-theme="dark"] .empty,
+body[data-theme="dark"] .back-button,
+body[data-theme="dark"] .contact-detail-name,
+body[data-theme="dark"] .contact-detail-email,
+body[data-theme="dark"] .hint {
+  color: #fff;
+}
+
+body[data-theme="dark"] .search-box input {
+  background: #2a2a2e;
+  border-color: #444;
+  color: #fff;
+}
+
+body[data-theme="dark"] .search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+body[data-theme="dark"] .hint {
+  background: #2a2a2e;
+}
+
+/* Light theme */
+body[data-theme="light"] {
+  color: #333;
+  background: #fff;
+}
+
+body[data-theme="light"] .loading,
+body[data-theme="light"] .subtitle,
+body[data-theme="light"] .empty,
+body[data-theme="light"] .back-button,
+body[data-theme="light"] .contact-detail-name,
+body[data-theme="light"] .contact-detail-email,
+body[data-theme="light"] .hint {
+  color: #333;
+}
+
+body[data-theme="light"] .search-box input {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+body[data-theme="light"] .search-box input::placeholder {
+  color: #999;
+}
+
+body[data-theme="light"] .hint {
+  background: #e9ecef;
+  color: #666;
 }
 
 .app {
@@ -19,12 +79,65 @@ body {
 .loading {
   padding: 24px;
   text-align: center;
-  color: #fff;
   font-size: 18px;
 }
 
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 16px;
+}
+
+.header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Dark mode toggle slider */
+.theme-toggle {
+  flex-shrink: 0;
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.theme-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-slider {
+  position: absolute;
+  inset: 0;
+  background: #374965;
+  border-radius: 24px;
+  transition: background 0.2s;
+}
+
+.theme-toggle input:checked + .theme-slider {
+  background: #26c281;
+}
+
+.theme-slider::before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle input:checked + .theme-slider::before {
+  transform: translateX(20px);
 }
 
 .header h2 {
@@ -36,7 +149,6 @@ body {
 .subtitle {
   margin: 0;
   font-size: 14px;
-  color: #fff;
 }
 
 .search-box {
@@ -48,17 +160,10 @@ body {
 .search-box input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #444;
   border-radius: 6px;
   font-size: 16px;
   font-family: 'Open Sans', sans-serif;
   font-weight: 300;
-  background: #2a2a2e;
-  color: #fff;
-}
-
-.search-box input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .search-box input:focus {
@@ -103,7 +208,6 @@ body {
 }
 
 .empty {
-  color: #fff;
   font-size: 15px;
   padding: 16px;
   text-align: center;
@@ -193,7 +297,6 @@ body {
 .contact-detail-email {
   margin: 0 0 12px 0;
   font-size: 15px;
-  color: #fff;
 }
 
 .contact-properties {
