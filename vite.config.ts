@@ -11,6 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    https: true, // LiveChat requires HTTPS for widgets
+    // Use HTTP for local dev to avoid ERR_SSL_VERSION_OR_CIPHER_MISMATCH.
+    // For LiveChat testing, deploy to a host with HTTPS or use ngrok.
+    https: false,
   },
 });

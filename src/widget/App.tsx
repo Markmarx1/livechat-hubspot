@@ -95,13 +95,18 @@ function ContactLookup({ widget }: ContactLookupProps) {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Call backend API to search HubSpot contacts
-      // const res = await fetch(`/api/hubspot/search?q=${encodeURIComponent(query)}`);
-      // const data = await res.json();
-      // setContacts(data.results || []);
-      setContacts([]);
+      const res = await fetch(`${API_BASE}/api/hubspot-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: query.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Search failed');
+      }
+      setContacts(data.results || []);
     } catch (e) {
-      setError('Search failed. Connect HubSpot in Settings.');
+      setError(e instanceof Error ? e.message : 'Search failed. Connect HubSpot (see CONFIGURE_HUBSPOT.md).');
     } finally {
       setLoading(false);
     }
@@ -154,8 +159,8 @@ function ContactLookup({ widget }: ContactLookupProps) {
       </div>
       {error && <p className="error">{error}</p>}
       <div className="contact-list">
-        {contacts.length === 0 && !loading && query && (
-          <p className="empty">No contacts found. Connect HubSpot in Settings.</p>
+        {contacts.length === 0 && !loading && query && !error && (
+          <p className="empty">No contacts found.</p>
         )}
         {contacts.map((c) => (
           <button
