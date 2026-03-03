@@ -114,7 +114,7 @@ body {
   flex-direction: column;
   align-items: flex-start;
   padding: 12px;
-  background: #b2b2b2;
+  background: #e6e6e6;
   color: #374965;
   border: none;
   border-radius: 6px;
@@ -191,7 +191,7 @@ body {
 }
 
 .contact-properties {
-  background: #b2b2b2;
+  background: #e6e6e6;
   color: #374965;
   border-radius: 6px;
   padding: 12px;
