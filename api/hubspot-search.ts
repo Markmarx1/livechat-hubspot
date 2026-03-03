@@ -2,33 +2,42 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const HUBSPOT_API = 'https://api.hubapi.com';
 
+function safeJsonBody(body: unknown): Record<string, unknown> {
+  if (typeof body === 'object' && body !== null) return body as Record<string, unknown>;
+  if (typeof body === 'string') {
+    try { return JSON.parse(body) as Record<string, unknown>; } catch { return {}; }
+  }
+  return {};
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST' && req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const token = process.env.HUBSPOT_ACCESS_TOKEN;
-  if (!token) {
-    return res.status(503).json({
-      error: 'HubSpot not connected',
-      message: 'Add HUBSPOT_ACCESS_TOKEN to your Vercel environment variables. See CONFIGURE_HUBSPOT.md',
-    });
-  }
-
-  const query = (req.method === 'GET' ? req.query.q : req.body?.q) as string | undefined;
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return res.status(400).json({ error: 'Query parameter "q" is required' });
-  }
-
   try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const token = process.env.HUBSPOT_ACCESS_TOKEN;
+    if (!token) {
+      return res.status(503).json({
+        error: 'HubSpot not connected',
+        message: 'Add HUBSPOT_ACCESS_TOKEN to your Vercel environment variables. See CONFIGURE_HUBSPOT.md',
+      });
+    }
+
+    const body = safeJsonBody(req.body);
+    const query = (req.method === 'GET' ? req.query.q : body.q) as string | undefined;
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+
     const searchRes = await fetch(`${HUBSPOT_API}/crm/v3/objects/contacts/search`, {
       method: 'POST',
       headers: {
@@ -69,11 +78,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     return res.status(200).json({ results });
-  } catch (e) {
-    console.error('HubSpot search error:', e);
+  } catch (err) {
+    console.error('HubSpot search error:', err);
     return res.status(500).json({
       error: 'Search failed',
-      message: e instanceof Error ? e.message : 'Unknown error',
+      message: err instanceof Error ? err.message : 'Function invocation failed',
     });
   }
 }
