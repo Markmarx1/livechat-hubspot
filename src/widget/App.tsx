@@ -100,11 +100,13 @@ function ContactLookup({ widget }: ContactLookupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ q: query.trim() }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: { results?: unknown[]; message?: string; error?: string } = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
       if (!res.ok) {
-        throw new Error(data.message || data.error || 'Search failed');
+        throw new Error(data.message || data.error || text || 'Search failed');
       }
-      setContacts(data.results || []);
+      setContacts((data.results as Array<{ name: string; email: string }>) || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed. Connect HubSpot (see CONFIGURE_HUBSPOT.md).');
     } finally {
@@ -130,8 +132,10 @@ function ContactLookup({ widget }: ContactLookupProps) {
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update customer');
+        const text = await res.text();
+        let data: { message?: string; error?: string } = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
+        throw new Error(data.message || data.error || text || 'Failed to update customer');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
