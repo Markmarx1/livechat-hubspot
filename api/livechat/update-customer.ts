@@ -35,10 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { customerId, name, email } = body as {
+    const { customerId, name, email, hubspotContactId } = body as {
       customerId?: string;
       name?: string;
       email?: string;
+      hubspotContactId?: string;
     };
 
     if (!customerId || (!name && !email)) {
@@ -49,9 +50,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const basicAuth = Buffer.from(`${accountId}:${token}`).toString('base64');
 
-    const payload: Record<string, string> = { id: customerId };
+    const payload: Record<string, unknown> = { id: customerId };
     if (name) payload.name = name;
     if (email) payload.email = email;
+    if (hubspotContactId) {
+      payload.session_fields = [
+        { key: 'hubspot_contact_id', value: String(hubspotContactId) },
+      ];
+    }
 
     const updateRes = await fetch(LIVECHAT_API, {
       method: 'POST',

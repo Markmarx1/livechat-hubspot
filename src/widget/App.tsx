@@ -310,6 +310,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
           customerId: targetCustomerId,
           name: selectedContact.name,
           email: selectedContact.email,
+          hubspotContactId: selectedContact.id,
         }),
       });
       if (!res.ok) {
