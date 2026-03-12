@@ -49,22 +49,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const basicAuth = Buffer.from(`${accountId}:${token}`).toString('base64');
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${basicAuth}`,
+    };
 
     const payload: Record<string, unknown> = { id: customerId };
     if (name) payload.name = name;
     if (email) payload.email = email;
     if (hubspotContactId) {
-      payload.session_fields = [
-        { hubspot_contact_id: String(hubspotContactId) },
-      ];
+      // Read existing session_fields first so we merge, not overwrite.
+      // Other integrations (Median, GA, etc.) also write session_fields
+      // and sending only our field would wipe theirs out.
+      let existingFields: Record<string, string>[] = [];
+      try {
+        const getRes = await fetch(
+          'https://api.livechatinc.com/v3.6/agent/action/get_customer',
+          {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ id: customerId }),
+          }
+        );
+        if (getRes.ok) {
+          const customerData = await getRes.json();
+          existingFields = (customerData.session_fields || []) as Record<string, string>[];
+        }
+      } catch {
+        // If we can't read, just send our field — better than not setting it
+      }
+
+      // Remove any existing hubspot_contact_id entry, then add ours
+      const merged = existingFields.filter(
+        (f) => !('hubspot_contact_id' in f)
+      );
+      merged.push({ hubspot_contact_id: String(hubspotContactId) });
+      payload.session_fields = merged;
     }
 
     const updateRes = await fetch(LIVECHAT_API, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${basicAuth}`,
-      },
+      headers: authHeaders,
       body: JSON.stringify(payload),
     });
 
