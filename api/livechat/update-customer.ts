@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const LIVECHAT_API = 'https://api.livechatinc.com/v3.6/agent/action/update_customer';
+const LIVECHAT_CHAT_PROPS_API = 'https://api.livechatinc.com/v3.6/agent/action/update_chat_properties';
+const LIVECHAT_CLIENT_ID = '0a418ea7727e9cdf83bede40816c5d95';
 
 function safeJsonBody(body: unknown): Record<string, unknown> {
   if (typeof body === 'object' && body !== null) return body as Record<string, unknown>;
@@ -35,8 +37,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { customerId, name, email, hubspotContactId } = body as {
+    const { customerId, chatId, name, email, hubspotContactId } = body as {
       customerId?: string;
+      chatId?: string;
       name?: string;
       email?: string;
       hubspotContactId?: string;
@@ -53,18 +56,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload: Record<string, unknown> = { id: customerId };
     if (name) payload.name = name;
     if (email) payload.email = email;
-    if (hubspotContactId) {
-      payload.session_fields = [
-        { key: 'hubspot_contact_id', value: String(hubspotContactId) },
-      ];
-    }
+
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${basicAuth}`,
+    };
 
     const updateRes = await fetch(LIVECHAT_API, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${basicAuth}`,
-      },
+      headers: authHeaders,
       body: JSON.stringify(payload),
     });
 
@@ -77,6 +77,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       throw new Error(`LiveChat API error: ${updateRes.status} ${errText}`);
+    }
+
+    // Set HubSpot contact ID as a chat property (integrations data)
+    if (chatId && hubspotContactId) {
+      const propsRes = await fetch(LIVECHAT_CHAT_PROPS_API, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          id: chatId,
+          properties: {
+            [LIVECHAT_CLIENT_ID]: {
+              hubspot_contact_id: String(hubspotContactId),
+            },
+          },
+        }),
+      });
+
+      if (!propsRes.ok) {
+        const errText = await propsRes.text();
+        console.error('Failed to set chat properties:', propsRes.status, errText);
+      }
     }
 
     return res.status(200).json({ success: true });

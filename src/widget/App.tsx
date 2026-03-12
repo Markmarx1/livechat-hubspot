@@ -159,6 +159,7 @@ interface CustomerProfile {
   id: string;
   name?: string;
   email?: string;
+  chat?: { chat_id?: string; groupID?: string; id?: string };
 }
 
 /** Cache HubSpot contact by customer ID for persistence when switching chats */
@@ -183,11 +184,11 @@ function ContactLookup({ widget }: ContactLookupProps) {
   // Get current chat's customer profile
   useEffect(() => {
     const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
-    setCustomerProfile(profile ? { id: profile.id, name: profile.name, email: profile.email } : null);
+    setCustomerProfile(profile ? { id: profile.id, name: profile.name, email: profile.email, chat: profile.chat } : null);
 
     const handler = () => {
       const p = widget.getCustomerProfile() as CustomerProfile | undefined;
-      setCustomerProfile(p ? { id: p.id, name: p.name, email: p.email } : null);
+      setCustomerProfile(p ? { id: p.id, name: p.name, email: p.email, chat: p.chat } : null);
     };
     widget.on('customer_profile', handler);
     return () => widget.off('customer_profile', handler);
@@ -300,6 +301,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     const currentProfile = widget.getCustomerProfile() as CustomerProfile | undefined;
     const targetCustomerId = currentProfile?.id;
     if (!targetCustomerId) return;
+    const chatId = currentProfile?.chat?.chat_id;
     setUpdating(true);
     setError(null);
     try {
@@ -308,6 +310,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: targetCustomerId,
+          chatId,
           name: selectedContact.name,
           email: selectedContact.email,
           hubspotContactId: selectedContact.id,
