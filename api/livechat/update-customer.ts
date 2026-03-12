@@ -35,11 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { customerId, name, email, hubspotContactId } = body as {
+    const { customerId, name, email, hubspotContactId, chatId } = body as {
       customerId?: string;
       name?: string;
       email?: string;
       hubspotContactId?: string;
+      chatId?: string;
     };
 
     if (!customerId || (!name && !email)) {
@@ -102,6 +103,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       throw new Error(`LiveChat API error: ${updateRes.status} ${errText}`);
+    }
+
+    // Send an agent-only event to the chat with the HubSpot contact ID.
+    // The Whereby app reads this from get_chat events to identify the contact.
+    // (get_chat returns stale session_fields, but events are always current)
+    if (hubspotContactId && chatId) {
+      try {
+        await fetch('https://api.livechatinc.com/v3.6/agent/action/send_event', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            chat_id: chatId,
+            event: {
+              type: 'message',
+              text: `[hubspot_contact:${hubspotContactId}]`,
+              visibility: 'agents',
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn('Failed to send hubspot event to chat (non-fatal):', e);
+      }
     }
 
     return res.status(200).json({ success: true });
