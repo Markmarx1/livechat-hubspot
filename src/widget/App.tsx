@@ -301,7 +301,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
     const currentProfile = widget.getCustomerProfile() as CustomerProfile | undefined;
     const targetCustomerId = currentProfile?.id;
     if (!targetCustomerId) return;
-    const chatId = currentProfile?.chat?.chat_id;
     setUpdating(true);
     setError(null);
     try {
@@ -310,7 +309,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: targetCustomerId,
-          chatId,
           name: selectedContact.name,
           email: selectedContact.email,
           hubspotContactId: selectedContact.id,
