@@ -35,11 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { customerId, name, email, hubspotContactId } = body as {
+    const { customerId, name, email, hubspotContactId, chatId } = body as {
       customerId?: string;
       name?: string;
       email?: string;
       hubspotContactId?: string;
+      chatId?: string;
     };
 
     if (!customerId || (!name && !email)) {
@@ -102,6 +103,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       throw new Error(`LiveChat API error: ${updateRes.status} ${errText}`);
+    }
+
+    // Also write hubspot_contact_id as a chat thread property so it can be
+    // read reliably by other apps (session_fields get overwritten by other integrations).
+    if (hubspotContactId && chatId) {
+      try {
+        await fetch('https://api.livechatinc.com/v3.6/agent/action/update_chat_properties', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            id: chatId,
+            properties: {
+              hubspot: { contact_id: String(hubspotContactId) },
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn('Failed to set chat property (non-fatal):', e);
+      }
     }
 
     return res.status(200).json({ success: true });
