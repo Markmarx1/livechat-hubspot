@@ -105,22 +105,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error(`LiveChat API error: ${updateRes.status} ${errText}`);
     }
 
-    // Also write hubspot_contact_id as a chat thread property so it can be
-    // read reliably by other apps (session_fields get overwritten by other integrations).
+    // Notify the Whereby embed app so it stores the mapping in its database.
+    // This is the primary way the Whereby widget reads the HubSpot contact ID.
     if (hubspotContactId && chatId) {
+      const wherebyUrl = process.env.WHEREBY_EMBED_URL || 'https://whereby-embed-csnw.vercel.app';
+      const wherebySecret = process.env.WHEREBY_API_SECRET || '';
       try {
-        await fetch('https://api.livechatinc.com/v3.6/agent/action/update_chat_properties', {
+        await fetch(`${wherebyUrl}/api/hubspot-link`, {
           method: 'POST',
-          headers: authHeaders,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-secret': wherebySecret,
+          },
           body: JSON.stringify({
-            id: chatId,
-            properties: {
-              hubspot: { contact_id: String(hubspotContactId) },
-            },
+            chatId,
+            hubspotContactId: String(hubspotContactId),
           }),
         });
       } catch (e) {
-        console.warn('Failed to set chat property (non-fatal):', e);
+        console.warn('Failed to notify Whereby (non-fatal):', e);
       }
     }
 

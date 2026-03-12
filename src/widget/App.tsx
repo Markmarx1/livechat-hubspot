@@ -329,6 +329,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
       );
       contactCache.set(targetCustomerId, selectedContact);
       setCustomerContact(selectedContact);
+
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
