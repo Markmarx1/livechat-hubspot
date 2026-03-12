@@ -304,7 +304,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
     setUpdating(true);
     setError(null);
     try {
-      const chatIdVal = currentProfile?.chat?.chat_id || currentProfile?.chat?.id || '';
       const res = await fetch(`${API_BASE}/api/livechat/update-customer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -313,7 +312,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
           name: selectedContact.name,
           email: selectedContact.email,
           hubspotContactId: selectedContact.id,
-          chatId: chatIdVal,
         }),
       });
       if (!res.ok) {

@@ -35,12 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { customerId, name, email, hubspotContactId, chatId } = body as {
+    const { customerId, name, email, hubspotContactId } = body as {
       customerId?: string;
       name?: string;
       email?: string;
       hubspotContactId?: string;
-      chatId?: string;
     };
 
     if (!customerId || (!name && !email)) {
@@ -103,28 +102,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       throw new Error(`LiveChat API error: ${updateRes.status} ${errText}`);
-    }
-
-    // Notify the Whereby embed app so it stores the mapping in its database.
-    // This is the primary way the Whereby widget reads the HubSpot contact ID.
-    if (hubspotContactId && chatId) {
-      const wherebyUrl = process.env.WHEREBY_EMBED_URL || 'https://whereby-embed-csnw.vercel.app';
-      const wherebySecret = process.env.WHEREBY_API_SECRET || '';
-      try {
-        await fetch(`${wherebyUrl}/api/hubspot-link`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-secret': wherebySecret,
-          },
-          body: JSON.stringify({
-            chatId,
-            hubspotContactId: String(hubspotContactId),
-          }),
-        });
-      } catch (e) {
-        console.warn('Failed to notify Whereby (non-fatal):', e);
-      }
     }
 
     return res.status(200).json({ success: true });
