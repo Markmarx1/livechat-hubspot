@@ -35,12 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Verify webhook secret if configured.
-  // LiveChat sends the secret in the "X-LiveChat-Secret-Key" header (lowercased by Node).
+  // LiveChat sends the secret_key in the request body.
   const webhookSecret = process.env.LIVECHAT_WEBHOOK_SECRET;
   if (webhookSecret) {
-    const headerSecret = (req.headers['x-livechat-secret-key'] ?? req.headers['x-livechat-webhook-secret']) as string | undefined;
-    if (headerSecret !== webhookSecret) {
-      console.warn('Webhook secret mismatch. Headers:', JSON.stringify(Object.keys(req.headers)));
+    const bodySecret = req.body?.secret_key;
+    if (bodySecret !== webhookSecret) {
+      console.warn('Webhook secret mismatch. Body keys:', JSON.stringify(Object.keys(req.body || {})));
       return res.status(403).json({ error: 'Invalid webhook secret' });
     }
   }
