@@ -125,6 +125,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (e) {
         console.warn('Failed to send hubspot event to chat (non-fatal):', e);
       }
+
+      // Also set a chat property so get_chat returns the HubSpot contact ID
+      // directly on the chat object (chat properties are mutable, unlike the
+      // frozen customer snapshot).
+      // The namespace is the app's client_id from LiveChat Developer Console.
+      try {
+        await fetch('https://api.livechatinc.com/v3.6/agent/action/update_chat_properties', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            id: chatId,
+            properties: {
+              '0a418ea7727e9cdf83bede40816c5d95': {
+                contact_id: String(hubspotContactId),
+              },
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn('Failed to set chat property (non-fatal):', e);
+      }
     }
 
     return res.status(200).json({ success: true });
