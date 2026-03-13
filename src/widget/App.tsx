@@ -330,6 +330,14 @@ function ContactLookup({ widget }: ContactLookupProps) {
       contactCache.set(targetCustomerId, selectedContact);
       setCustomerContact(selectedContact);
 
+      // Notify other apps (e.g. Whereby widget) that a HubSpot contact was linked
+      try {
+        window.parent.postMessage(
+          { type: 'hubspot-contact-linked', hubspotContactId: selectedContact.id, chatId: chatIdVal },
+          '*',
+        );
+      } catch { /* cross-origin or sandboxed */ }
+
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update customer.');
