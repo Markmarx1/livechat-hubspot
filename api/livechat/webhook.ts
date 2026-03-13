@@ -22,36 +22,11 @@ interface ChatUser {
   type: string;
 }
 
-/** Get an OAuth access token using the app's client credentials */
-async function getLiveChatToken(): Promise<string> {
-  const clientId = APP_CLIENT_ID;
-  const clientSecret = process.env.LIVECHAT_CLIENT_SECRET;
-  if (!clientSecret) throw new Error('LIVECHAT_CLIENT_SECRET not configured');
-
-  const res = await fetch('https://accounts.livechat.com/v2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OAuth token request failed (${res.status}): ${err}`);
-  }
-
-  const data = await res.json();
-  return data.access_token;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Webhook-Secret');
     return res.status(200).end();
   }
 
@@ -59,36 +34,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify webhook secret if configured.
-  // LiveChat sends the secret_key in the request body.
+  // Verify webhook secret via header (workflow builder) or body (native webhook).
   const webhookSecret = process.env.LIVECHAT_WEBHOOK_SECRET;
   if (webhookSecret) {
-    const bodySecret = req.body?.secret_key;
-    if (bodySecret !== webhookSecret) {
-      console.warn('Webhook secret mismatch. Body keys:', JSON.stringify(Object.keys(req.body || {})));
+    const secret = req.headers['x-webhook-secret'] ?? req.headers['x_webhook_secret'] ?? req.body?.secret_key;
+    if (secret !== webhookSecret) {
+      console.warn('Webhook secret mismatch');
       return res.status(403).json({ error: 'Invalid webhook secret' });
     }
   }
 
+  const accountId = process.env.LIVECHAT_ACCOUNT_ID;
+  const token = process.env.LIVECHAT_ACCESS_TOKEN;
   const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const clientSecret = process.env.LIVECHAT_CLIENT_SECRET;
 
-  if (!clientSecret || !hubspotToken) {
+  if (!accountId || !token || !hubspotToken) {
     console.error('Missing required env vars for webhook handler');
     return res.status(503).json({ error: 'Not configured' });
   }
 
-  let lcToken: string;
-  try {
-    lcToken = await getLiveChatToken();
-  } catch (err) {
-    console.error('Failed to get LiveChat OAuth token:', err);
-    return res.status(503).json({ error: 'OAuth token failed' });
-  }
-
+  const basicAuth = Buffer.from(`${accountId}:${token}`).toString('base64');
   const lcHeaders = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${lcToken}`,
+    Authorization: `Basic ${basicAuth}`,
   };
   const hsHeaders = {
     'Content-Type': 'application/json',
@@ -97,15 +65,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = req.body;
-    const action = payload?.action;
-    console.log('Webhook received:', JSON.stringify({ action, keys: Object.keys(payload || {}) }));
+    console.log('Webhook received:', JSON.stringify(payload));
 
-    // Only handle chat_deactivated (chat ended)
-    if (action !== 'chat_deactivated') {
-      return res.status(200).json({ ok: true, skipped: action });
-    }
-
-    const chatId = payload?.payload?.chat_id;
+    // Accept chat_id from workflow builder (top-level) or native webhook (payload.chat_id)
+    const chatId = payload?.chat_id || payload?.payload?.chat_id;
     if (!chatId) {
       return res.status(200).json({ ok: true, skipped: 'no chat_id' });
     }
@@ -125,16 +88,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const chat = await chatRes.json();
 
-    // 2. Find the HubSpot contact ID (from chat properties or by email)
+    // 2. Only proceed if a HubSpot contact was explicitly linked during the chat
     let hubspotContactId: string | undefined;
-
-    // Check chat properties first
     const appProps = chat.properties?.[APP_CLIENT_ID];
     if (appProps?.contact_id) {
       hubspotContactId = String(appProps.contact_id);
     }
 
-    // Only proceed if a HubSpot contact was explicitly linked during the chat
     if (!hubspotContactId) {
       return res.status(200).json({ ok: true, skipped: 'no hubspot contact linked' });
     }
@@ -183,7 +143,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (lines.length <= 3) {
-      // No actual messages — skip
       return res.status(200).json({ ok: true, skipped: 'empty transcript' });
     }
 
@@ -220,7 +179,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err) {
     console.error('Webhook handler error:', err);
-    // Always return 200 to avoid LiveChat retrying
     return res.status(200).json({ ok: false, error: 'internal error' });
   }
 }
