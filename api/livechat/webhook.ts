@@ -100,44 +100,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       hubspotContactId = String(appProps.contact_id);
     }
 
+    // Only proceed if a HubSpot contact was explicitly linked during the chat
+    if (!hubspotContactId) {
+      return res.status(200).json({ ok: true, skipped: 'no hubspot contact linked' });
+    }
+
     // Get customer info
     const users: ChatUser[] = chat.users || [];
     const customer = users.find((u: ChatUser) => u.type === 'customer');
     const customerEmail = customer?.email;
     const customerName = customer?.name || customerEmail || 'Visitor';
-
-    // If no linked contact, try to find one by email
-    if (!hubspotContactId && customerEmail) {
-      try {
-        const searchRes = await fetch(`${HUBSPOT_API}/crm/v3/objects/contacts/search`, {
-          method: 'POST',
-          headers: hsHeaders,
-          body: JSON.stringify({
-            filterGroups: [{
-              filters: [{
-                propertyName: 'email',
-                operator: 'EQ',
-                value: customerEmail,
-              }],
-            }],
-            limit: 1,
-          }),
-        });
-        if (searchRes.ok) {
-          const data = await searchRes.json();
-          if (data.results?.length > 0) {
-            hubspotContactId = data.results[0].id;
-          }
-        }
-      } catch (e) {
-        console.warn('HubSpot email search failed (non-fatal):', e);
-      }
-    }
-
-    // No HubSpot contact found — nothing to write to
-    if (!hubspotContactId) {
-      return res.status(200).json({ ok: true, skipped: 'no hubspot contact' });
-    }
 
     // 3. Build the transcript from chat threads
     const threads: ChatThread[] = chat.threads || chat.thread ? [chat.thread] : [];
