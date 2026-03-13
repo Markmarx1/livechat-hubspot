@@ -34,11 +34,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify webhook secret if configured
+  // Verify webhook secret if configured.
+  // LiveChat sends the secret in the "X-LiveChat-Secret-Key" header (lowercased by Node).
   const webhookSecret = process.env.LIVECHAT_WEBHOOK_SECRET;
   if (webhookSecret) {
-    const headerSecret = req.headers['x-livechat-webhook-secret'] as string | undefined;
+    const headerSecret = (req.headers['x-livechat-secret-key'] ?? req.headers['x-livechat-webhook-secret']) as string | undefined;
     if (headerSecret !== webhookSecret) {
+      console.warn('Webhook secret mismatch. Headers:', JSON.stringify(Object.keys(req.headers)));
       return res.status(403).json({ error: 'Invalid webhook secret' });
     }
   }
@@ -65,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const payload = req.body;
     const action = payload?.action;
+    console.log('Webhook received:', JSON.stringify({ action, keys: Object.keys(payload || {}) }));
 
     // Only handle chat_deactivated (chat ended)
     if (action !== 'chat_deactivated') {
