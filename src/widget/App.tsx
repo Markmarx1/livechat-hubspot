@@ -164,6 +164,8 @@ interface CustomerProfile {
 
 /** Cache HubSpot contact by customer ID for persistence when switching chats */
 const contactCache = new Map<string, HubSpotContact>();
+/** Track which customers have already been auto-linked to avoid repeated calls */
+const autoLinkedCache = new Set<string>();
 
 function ContactLookup({ widget }: ContactLookupProps) {
   const [query, setQuery] = useState('');
@@ -254,6 +256,39 @@ function ContactLookup({ widget }: ContactLookupProps) {
       });
     return () => { cancelled = true; };
   }, [customerId, customerProfile?.email]);
+
+  // Auto-link HubSpot contact when email matches (same as clicking "Update visitor")
+  useEffect(() => {
+    if (!customerContact?.id || !customerId) return;
+    if (autoLinkedCache.has(customerId)) return;
+    autoLinkedCache.add(customerId);
+
+    const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
+    const chatIdVal = profile?.chat?.chat_id || profile?.chat?.id || '';
+
+    fetch(`${API_BASE}/api/livechat/update-customer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId,
+        name: customerContact.name,
+        email: customerContact.email,
+        hubspotContactId: customerContact.id,
+        chatId: chatIdVal,
+      }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          try {
+            window.parent.postMessage(
+              { type: 'hubspot-contact-linked', hubspotContactId: customerContact.id, chatId: chatIdVal },
+              '*',
+            );
+          } catch { /* cross-origin */ }
+        }
+      })
+      .catch(() => { /* non-fatal */ });
+  }, [customerContact, customerId, widget]);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -397,7 +432,19 @@ function ContactLookup({ widget }: ContactLookupProps) {
           ← Back to list
         </button>
         <div className="contact-detail">
-          <h3 className="contact-detail-name">{selectedContact.name}</h3>
+          <h3 className="contact-detail-name">
+            {selectedContact.id ? (
+              <a
+                href={`https://app.hubspot.com/contacts/3307963/record/0-1/${selectedContact.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {selectedContact.name}
+              </a>
+            ) : (
+              selectedContact.name
+            )}
+          </h3>
           {selectedContact.email && (
             <p className="contact-detail-email">{selectedContact.email}</p>
           )}
