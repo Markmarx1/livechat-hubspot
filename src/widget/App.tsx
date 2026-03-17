@@ -10,10 +10,6 @@ const hasKnownValue = (v: unknown): boolean =>
 
 /** Contact properties to display when selected, in order */
 const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
-  ['customer_first_name', 'Customer First Name'],
-  ['customer_last_name', 'Customer Last Name'],
-  ['firstname', 'First Name'],
-  ['lastname', 'Last Name'],
   ['email', 'Email'],
   ['bd_client', 'BD Client'],
   ['ia_client', 'IA Client'],
@@ -463,28 +459,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
               )}
             </>
           )}
-          <div className="contact-properties">
-            {displayProps.map(([key, label]) => {
-              const val = props[key];
-              return (
-              <div key={key} className="property-row">
-                <span className="property-label">{label}</span>
-                <span className="property-value">
-                  {key === 'addepar_contact_link' && val ? (
-                    <a href={String(val)} target="_blank" rel="noopener noreferrer">
-                      {String(val)}
-                    </a>
-                  ) : (
-                    String(val ?? '')
-                  )}
-                </span>
-              </div>
-            );
-            })}
-            {displayProps.length === 0 && (
-              <p className="empty">No additional properties available.</p>
-            )}
-          </div>
           {selectedContact.id && (
             <div className="contact-notes">
               <h4 className="notes-title">Notes</h4>
@@ -526,6 +500,28 @@ function ContactLookup({ widget }: ContactLookupProps) {
               ) : null}
             </div>
           )}
+          <div className="contact-properties">
+            {displayProps.map(([key, label]) => {
+              const val = props[key];
+              return (
+              <div key={key} className="property-row">
+                <span className="property-label">{label}</span>
+                <span className="property-value">
+                  {key === 'addepar_contact_link' && val ? (
+                    <a href={String(val)} target="_blank" rel="noopener noreferrer">
+                      {String(val)}
+                    </a>
+                  ) : (
+                    String(val ?? '')
+                  )}
+                </span>
+              </div>
+            );
+            })}
+            {displayProps.length === 0 && (
+              <p className="empty">No additional properties available.</p>
+            )}
+          </div>
         </div>
         {error && <p className="error">{error}</p>}
       </div>
