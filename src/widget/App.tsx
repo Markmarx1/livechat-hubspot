@@ -27,7 +27,13 @@ const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
 /** Mock widget for standalone/dev mode when not running inside LiveChat */
 function createMockWidget(): IDetailsWidget {
   return {
-    getCustomerProfile: () => ({ id: 'dev-customer-id', name: 'Dev User', email: 'dev@example.com' }),
+    getCustomerProfile: () => ({
+      id: 'dev-customer-id',
+      name: 'Dev User',
+      email: 'dev@example.com',
+      source: 'chats',
+      chat: { id: 'dev-chat', groupID: '0' },
+    }),
     putMessage: () => Promise.resolve(),
     sendMessage: () => Promise.resolve(),
     on: () => {},
@@ -41,7 +47,7 @@ function createMockWidget(): IDetailsWidget {
  *
  * - Search contacts by name
  * - Display name, email, and configurable properties
- * - On select: update the visitor's name and email in LiveChat (customer properties) via update_customer API
+ * - On select + "Update visitor": push name/email only for the highlighted live chat (profile.source === chats)
  */
 const THEME_KEY = 'hubspot-lookup-theme';
 
@@ -155,13 +161,20 @@ interface CustomerProfile {
   id: string;
   name?: string;
   email?: string;
+  /** From Agent App SDK — only `chats` is the highlighted live thread; other views must not call update_customer */
+  source?: 'chats' | 'archives' | 'customers';
   chat?: { chat_id?: string; groupID?: string; id?: string };
 }
 
 /** Cache HubSpot contact by customer ID for persistence when switching chats */
 const contactCache = new Map<string, HubSpotContact>();
-/** Track which customers have already been auto-linked to avoid repeated calls */
-const autoLinkedCache = new Set<string>();
+
+/** LiveChat only allows updating the visitor for the active chat; docs: profile.source is chats | archives | customers */
+function isHighlightedLiveChat(profile: CustomerProfile | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.source == null) return true;
+  return profile.source === 'chats';
+}
 
 function ContactLookup({ widget }: ContactLookupProps) {
   const [query, setQuery] = useState('');
@@ -178,21 +191,44 @@ function ContactLookup({ widget }: ContactLookupProps) {
   const [notesLoading, setNotesLoading] = useState(false);
 
   const customerId = customerProfile?.id ?? null;
+  const activeChatKey =
+    customerProfile?.chat?.chat_id || customerProfile?.chat?.id || '';
+  const canPushToLiveChatVisitor = isHighlightedLiveChat(customerProfile);
 
-  // Get current chat's customer profile
+  // Get current chat's customer profile (SDK keeps one slot; use event payload when provided)
   useEffect(() => {
     const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
-    setCustomerProfile(profile ? { id: profile.id, name: profile.name, email: profile.email, chat: profile.chat } : null);
+    setCustomerProfile(
+      profile
+        ? {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            source: profile.source,
+            chat: profile.chat,
+          }
+        : null
+    );
 
-    const handler = () => {
-      const p = widget.getCustomerProfile() as CustomerProfile | undefined;
-      setCustomerProfile(p ? { id: p.id, name: p.name, email: p.email, chat: p.chat } : null);
+    const handler = (p?: CustomerProfile) => {
+      const next = p ?? (widget.getCustomerProfile() as CustomerProfile | undefined);
+      setCustomerProfile(
+        next
+          ? {
+              id: next.id,
+              name: next.name,
+              email: next.email,
+              source: next.source,
+              chat: next.chat,
+            }
+          : null
+      );
     };
     widget.on('customer_profile', handler);
     return () => widget.off('customer_profile', handler);
   }, [widget]);
 
-  // Reset search/contact state when switching to a different chat (but keep cached contact)
+  // Reset search/contact state when switching customer or active chat (same visitor can have multiple chats)
   useEffect(() => {
     setQuery('');
     setContacts([]);
@@ -206,7 +242,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     } else {
       setCustomerContact(null);
     }
-  }, [customerId]);
+  }, [customerId, activeChatKey]);
 
   // Auto-fetch HubSpot contact when customer has email (cache for persistence)
   useEffect(() => {
@@ -252,39 +288,6 @@ function ContactLookup({ widget }: ContactLookupProps) {
       });
     return () => { cancelled = true; };
   }, [customerId, customerProfile?.email]);
-
-  // Auto-link HubSpot contact when email matches (same as clicking "Update visitor")
-  useEffect(() => {
-    if (!customerContact?.id || !customerId) return;
-    if (autoLinkedCache.has(customerId)) return;
-    autoLinkedCache.add(customerId);
-
-    const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
-    const chatIdVal = profile?.chat?.chat_id || profile?.chat?.id || '';
-
-    fetch(`${API_BASE}/api/livechat/update-customer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerId,
-        name: customerContact.name,
-        email: customerContact.email,
-        hubspotContactId: customerContact.id,
-        chatId: chatIdVal,
-      }),
-    })
-      .then((res) => {
-        if (res.ok) {
-          try {
-            window.parent.postMessage(
-              { type: 'hubspot-contact-linked', hubspotContactId: customerContact.id, chatId: chatIdVal },
-              '*',
-            );
-          } catch { /* cross-origin */ }
-        }
-      })
-      .catch(() => { /* non-fatal */ });
-  }, [customerContact, customerId, widget]);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -332,6 +335,10 @@ function ContactLookup({ widget }: ContactLookupProps) {
     const currentProfile = widget.getCustomerProfile() as CustomerProfile | undefined;
     const targetCustomerId = currentProfile?.id;
     if (!targetCustomerId) return;
+    if (!isHighlightedLiveChat(currentProfile)) {
+      setError('Switch to the highlighted live chat (Chats view) to update only that visitor.');
+      return;
+    }
     setUpdating(true);
     setError(null);
     try {
@@ -450,10 +457,20 @@ function ContactLookup({ widget }: ContactLookupProps) {
                 type="button"
                 className="update-button"
                 onClick={handleUpdateVisitor}
-                disabled={updating}
+                disabled={updating || !canPushToLiveChatVisitor}
+                title={
+                  !canPushToLiveChatVisitor
+                    ? 'Open the live chat thread in Chats (highlighted chat) to push HubSpot name/email to that visitor only.'
+                    : undefined
+                }
               >
                 {updating ? 'Updating...' : 'Update visitor in LiveChat'}
               </button>
+              {!canPushToLiveChatVisitor && (
+                <p className="hint">
+                  Select the live chat you want to update (Chats view). Updates apply to the highlighted thread only.
+                </p>
+              )}
               {updateSuccess && (
                 <p className="update-success">Updated! Customer details have been saved.</p>
               )}
