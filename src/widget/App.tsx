@@ -49,6 +49,28 @@ function createMockWidget(): IDetailsWidget {
  * - Display name, email, and configurable properties
  * - On select + "Update visitor": push name/email only for the highlighted live chat (profile.source === chats)
  */
+const BANK_AFFILIATES = [
+  { value: '', label: 'Select bank affiliate...' },
+  { value: 'OceanFirst', label: 'OceanFirst' },
+  { value: 'Phoenixville', label: 'Phoenixville' },
+  { value: 'Bankers Bank', label: 'Bankers Bank' },
+  { value: 'No Bank', label: 'No Bank' },
+  { value: 'Flanagan State Bank', label: 'Flanagan State Bank' },
+  { value: 'Washington State Bank', label: 'Washington State Bank' },
+  { value: 'Community State Bank', label: 'Community State Bank' },
+  { value: 'German American State Bank', label: 'German American State Bank' },
+  { value: 'First Bank Hampton', label: 'First Bank Hampton' },
+  { value: 'Republic Bank', label: 'Republic Bank' },
+  { value: 'Prevail Bank', label: 'Prevail Bank' },
+  { value: 'Fortifi Bank', label: 'Fortifi Bank' },
+  { value: 'KeySavings Bank', label: 'KeySavings Bank' },
+  { value: 'JW Cole', label: 'JW Cole' },
+  { value: 'Smart Asset', label: 'Smart Asset' },
+  { value: 'First State Bank', label: 'First State Bank' },
+  { value: 'The AFCU', label: 'The AFCU' },
+  { value: 'HEFCU', label: 'HEFCU' },
+];
+
 const THEME_KEY = 'hubspot-lookup-theme';
 
 function App() {
@@ -189,6 +211,14 @@ function ContactLookup({ widget }: ContactLookupProps) {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [notes, setNotes] = useState<{ pinned: HubSpotNote | null; recent: HubSpotNote[] } | null>(null);
   const [notesLoading, setNotesLoading] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createFirstName, setCreateFirstName] = useState('');
+  const [createLastName, setCreateLastName] = useState('');
+  const [createEmail, setCreateEmail] = useState('');
+  const [createBankAffiliate, setCreateBankAffiliate] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState(false);
 
   const customerId = customerProfile?.id ?? null;
   const activeChatKey =
@@ -388,6 +418,80 @@ function ContactLookup({ widget }: ContactLookupProps) {
     setSelectedContact(null);
     setNotes(null);
     setError(null);
+  };
+
+  const handleCreateContact = async () => {
+    if (!createFirstName.trim() || !createLastName.trim() || !createEmail.trim()) return;
+    const currentProfile = widget.getCustomerProfile() as CustomerProfile | undefined;
+    const targetCustomerId = currentProfile?.id;
+    if (!targetCustomerId || !isHighlightedLiveChat(currentProfile)) {
+      setCreateError('Open a live chat (Chats view) to create and tag a contact.');
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const createRes = await fetch(`${API_BASE}/api/hubspot-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: createFirstName.trim(),
+          lastName: createLastName.trim(),
+          email: createEmail.trim(),
+          bankAffiliate: createBankAffiliate || undefined,
+        }),
+      });
+      const text = await createRes.text();
+      let data: { id?: string; name?: string; email?: string; properties?: Record<string, string | number | undefined>; message?: string; error?: string } = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON */ }
+      if (!createRes.ok) {
+        throw new Error(data.message || data.error || text || 'Failed to create contact');
+      }
+      const newContact: HubSpotContact = {
+        id: data.id,
+        name: data.name || [createFirstName.trim(), createLastName.trim()].join(' '),
+        email: data.email || createEmail.trim(),
+        properties: data.properties || {},
+      };
+
+      // Auto-tag: push name/email + hubspot_contact_id to the LiveChat visitor
+      const chatIdVal = currentProfile?.chat?.chat_id || currentProfile?.chat?.id || '';
+      const tagRes = await fetch(`${API_BASE}/api/livechat/update-customer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: targetCustomerId,
+          name: newContact.name,
+          email: newContact.email,
+          hubspotContactId: newContact.id,
+          chatId: chatIdVal,
+        }),
+      });
+      if (!tagRes.ok) {
+        const tagText = await tagRes.text();
+        let tagData: { message?: string; error?: string } = {};
+        try { tagData = tagText ? JSON.parse(tagText) : {}; } catch { /* non-JSON */ }
+        throw new Error(tagData.message || tagData.error || 'Contact created but failed to tag to chat');
+      }
+
+      // Update local state
+      contactCache.set(targetCustomerId, newContact);
+      setCustomerContact(newContact);
+      setCustomerProfile((prev) =>
+        prev ? { ...prev, name: newContact.name, email: newContact.email } : null
+      );
+      setCreateSuccess(true);
+      setShowCreateForm(false);
+      setCreateFirstName('');
+      setCreateLastName('');
+      setCreateEmail('');
+      setCreateBankAffiliate('');
+      setTimeout(() => setCreateSuccess(false), 3000);
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : 'Failed to create contact.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   // Fetch notes when viewing a contact with HubSpot id
@@ -621,6 +725,76 @@ function ContactLookup({ widget }: ContactLookupProps) {
           </button>
         ))}
       </div>
+      {customerId && (
+        <div className="create-contact-section">
+          {createSuccess && (
+            <p className="update-success">Contact created and tagged to this chat!</p>
+          )}
+          {!showCreateForm ? (
+            <button
+              type="button"
+              className="create-toggle-button"
+              onClick={() => { setShowCreateForm(true); setCreateError(null); }}
+            >
+              + Create New Contact
+            </button>
+          ) : (
+            <div className="create-form">
+              <h4 className="create-form-title">Create New Contact</h4>
+              <input
+                type="text"
+                className="create-input"
+                placeholder="First Name"
+                value={createFirstName}
+                onChange={(e) => setCreateFirstName(e.target.value)}
+              />
+              <input
+                type="text"
+                className="create-input"
+                placeholder="Last Name"
+                value={createLastName}
+                onChange={(e) => setCreateLastName(e.target.value)}
+              />
+              <input
+                type="email"
+                className="create-input"
+                placeholder="Email"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+              />
+              <select
+                className="create-select"
+                value={createBankAffiliate}
+                onChange={(e) => setCreateBankAffiliate(e.target.value)}
+              >
+                {BANK_AFFILIATES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {createError && <p className="error">{createError}</p>}
+              <div className="create-form-actions">
+                <button
+                  type="button"
+                  className="create-submit-button"
+                  onClick={handleCreateContact}
+                  disabled={creating || !createFirstName.trim() || !createLastName.trim() || !createEmail.trim()}
+                >
+                  {creating ? 'Creating...' : 'Create & Tag to Chat'}
+                </button>
+                <button
+                  type="button"
+                  className="create-cancel-button"
+                  onClick={() => { setShowCreateForm(false); setCreateError(null); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
