@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { requireLiveChatAuth } from '../_lib/livechat-auth';
 
 const LIVECHAT_API = 'https://api.livechatinc.com/v3.6/agent/action/update_customer';
 
@@ -14,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
@@ -23,6 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
+
+    const auth = await requireLiveChatAuth(req, res);
+    if (!auth) return;
 
     const accountId = process.env.LIVECHAT_ACCOUNT_ID;
     const token = process.env.LIVECHAT_ACCESS_TOKEN;

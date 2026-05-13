@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createDetailsWidget } from '@livechat/agent-app-sdk';
 import type { IDetailsWidget } from '@livechat/agent-app-sdk';
+import AccountsSDK from '@livechat/accounts-sdk';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+// LiveChat OAuth client_id (same value as livechat.config.json — public).
+// The server verifies that bearer tokens were issued to THIS client_id, so
+// even a leaked agent session token from another LiveChat app won't work.
+const LIVECHAT_CLIENT_ID =
+  import.meta.env.VITE_LIVECHAT_CLIENT_ID || '0a418ea7727e9cdf83bede40816c5d95';
 
 /** True if value is known and should be displayed */
 const hasKnownValue = (v: unknown): boolean =>
@@ -23,24 +30,6 @@ const CONTACT_PROPERTY_DISPLAY: Array<[string, string]> = [
   ['future_opportunity_notes', 'Future opportunity notes'],
   ['addepar_contact_link', 'Addepar Contact Link'],
 ];
-
-/** Mock widget for standalone/dev mode when not running inside LiveChat */
-function createMockWidget(): IDetailsWidget {
-  return {
-    getCustomerProfile: () => ({
-      id: 'dev-customer-id',
-      name: 'Dev User',
-      email: 'dev@example.com',
-      source: 'chats',
-      chat: { id: 'dev-chat', groupID: '0' },
-    }),
-    putMessage: () => Promise.resolve(),
-    sendMessage: () => Promise.resolve(),
-    on: () => {},
-    off: () => {},
-    modifySection: () => Promise.resolve(),
-  } as unknown as IDetailsWidget;
-}
 
 /**
  * HubSpot Contact Lookup Widget
@@ -73,10 +62,13 @@ const BANK_AFFILIATES = [
 
 const THEME_KEY = 'hubspot-lookup-theme';
 
+type AuthState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; widget: IDetailsWidget; token: string }
+  | { kind: 'unauthorized' };
+
 function App() {
-  const [widget, setWidget] = useState<IDetailsWidget | null>(null);
-  const [ready, setReady] = useState(false);
-  const [standalone, setStandalone] = useState(false);
+  const [auth, setAuth] = useState<AuthState>({ kind: 'loading' });
   const [darkMode, setDarkMode] = useState(() => {
     try {
       return localStorage.getItem(THEME_KEY) !== 'light';
@@ -92,43 +84,87 @@ function App() {
     } catch { /* ignore */ }
   }, [darkMode]);
 
+  // Two-step gate so the page is unreachable outside LiveChat:
+  //   1. agent-app-sdk createDetailsWidget — only resolves when the page is
+  //      hosted inside LiveChat's agent app shell (postMessage handshake).
+  //   2. accounts-sdk iframe().authorize — returns a signed OAuth
+  //      access_token tied to the current agent. The server verifies this
+  //      token (and that it was issued to our client_id) on every API call,
+  //      so HubSpot data is never returned without proof of a LiveChat
+  //      session.
   useEffect(() => {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Standalone mode')), 2000)
-    );
+    let cancelled = false;
+    (async () => {
+      // Step 1: confirm we're inside the LiveChat agent app.
+      const handshakeTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('LiveChat handshake timed out')), 4000)
+      );
+      let widget: IDetailsWidget;
+      try {
+        widget = (await Promise.race([
+          createDetailsWidget(),
+          handshakeTimeout,
+        ])) as IDetailsWidget;
+      } catch {
+        if (!cancelled) setAuth({ kind: 'unauthorized' });
+        return;
+      }
 
-    Promise.race([createDetailsWidget(), timeout])
-      .then((w) => {
-        setWidget(w);
-        setStandalone(false);
-        setReady(true);
-      })
-      .catch(() => {
-        console.warn('LiveChat SDK unavailable — running in standalone/dev mode');
-        setWidget(createMockWidget());
-        setStandalone(true);
-        setReady(true);
-      });
+      // Step 2: get the agent's signed OAuth access_token. iframe().authorize()
+      // uses postMessage to the LiveChat accounts service and only succeeds
+      // when an authenticated agent session is present in the parent frame.
+      try {
+        const sdk = new AccountsSDK({ client_id: LIVECHAT_CLIENT_ID });
+        const data = await sdk.iframe().authorize();
+        const accessToken = (data as { access_token?: string } | null)?.access_token;
+        if (!accessToken) throw new Error('No access_token returned');
+        if (!cancelled) setAuth({ kind: 'ready', widget, token: accessToken });
+      } catch (err) {
+        console.warn('LiveChat OAuth authorize failed', err);
+        if (!cancelled) setAuth({ kind: 'unauthorized' });
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  if (!ready) {
+  const headerControls = (
+    <label className="theme-toggle" title={darkMode ? 'Dark mode' : 'Light mode'}>
+      <input
+        type="checkbox"
+        checked={darkMode}
+        onChange={(e) => setDarkMode(e.target.checked)}
+        aria-label="Toggle dark mode"
+      />
+      <span className="theme-slider" />
+    </label>
+  );
+
+  if (auth.kind === 'loading') {
     return (
       <div className="app">
         <header className="header">
           <div className="header-content">
             <h2>HubSpot Contact Lookup</h2>
           </div>
-          <label className="theme-toggle" title={darkMode ? 'Dark mode' : 'Light mode'}>
-            <input
-              type="checkbox"
-              checked={darkMode}
-              onChange={(e) => setDarkMode(e.target.checked)}
-              aria-label="Toggle dark mode"
-            />
-            <span className="theme-slider" />
-          </label>
+          {headerControls}
         </header>
         <div className="loading">Connecting to LiveChat...</div>
+      </div>
+    );
+  }
+
+  if (auth.kind === 'unauthorized') {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="header-content">
+            <h2>HubSpot Contact Lookup</h2>
+          </div>
+          {headerControls}
+        </header>
+        <div className="loading">
+          This page must be opened from inside the LiveChat agent app.
+        </div>
       </div>
     );
   }
@@ -138,24 +174,12 @@ function App() {
       <header className="header">
         <div className="header-content">
           <h2>HubSpot Contact Lookup</h2>
-          <p className="subtitle">
-            {standalone ? 'Dev mode — install in LiveChat to use with real chats' : 'Search and insert contact details'}
-          </p>
+          <p className="subtitle">Search and insert contact details</p>
         </div>
-        <label className="theme-toggle" title={darkMode ? 'Dark mode' : 'Light mode'}>
-          <input
-            type="checkbox"
-            checked={darkMode}
-            onChange={(e) => setDarkMode(e.target.checked)}
-            aria-label="Toggle dark mode"
-          />
-          <span className="theme-slider" />
-        </label>
+        {headerControls}
       </header>
       <main className="main">
-        {widget && (
-          <ContactLookup widget={widget} />
-        )}
+        <ContactLookup widget={auth.widget} token={auth.token} />
       </main>
     </div>
   );
@@ -163,6 +187,8 @@ function App() {
 
 interface ContactLookupProps {
   widget: IDetailsWidget;
+  /** LiveChat OAuth access_token — passed as Bearer to every API call */
+  token: string;
 }
 
 interface HubSpotContact {
@@ -198,7 +224,11 @@ function isHighlightedLiveChat(profile: CustomerProfile | null | undefined): boo
   return profile.source === 'chats';
 }
 
-function ContactLookup({ widget }: ContactLookupProps) {
+function ContactLookup({ widget, token }: ContactLookupProps) {
+  const authHeaders = (): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  });
   const [query, setQuery] = useState('');
   const [contacts, setContacts] = useState<HubSpotContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<HubSpotContact | null>(null);
@@ -293,7 +323,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     setCustomerContact(null);
     fetch(`${API_BASE}/api/hubspot-search`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ q: email }),
     })
       .then((res) => res.text())
@@ -326,7 +356,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     try {
       const res = await fetch(`${API_BASE}/api/hubspot-search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ q: query.trim() }),
       });
       const text = await res.text();
@@ -375,7 +405,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
       const chatIdVal = currentProfile?.chat?.chat_id || currentProfile?.chat?.id || '';
       const res = await fetch(`${API_BASE}/api/livechat/update-customer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           customerId: targetCustomerId,
           name: selectedContact.name,
@@ -433,7 +463,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     try {
       const createRes = await fetch(`${API_BASE}/api/hubspot-create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           firstName: createFirstName.trim(),
           lastName: createLastName.trim(),
@@ -458,7 +488,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
       const chatIdVal = currentProfile?.chat?.chat_id || currentProfile?.chat?.id || '';
       const tagRes = await fetch(`${API_BASE}/api/livechat/update-customer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           customerId: targetCustomerId,
           name: newContact.name,
@@ -508,7 +538,7 @@ function ContactLookup({ widget }: ContactLookupProps) {
     const pinnedId = pinnedVal != null ? String(pinnedVal).trim() || undefined : undefined;
     fetch(`${API_BASE}/api/hubspot-notes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ contactId, pinnedNoteId: pinnedId || undefined }),
     })
       .then((res) => res.text())

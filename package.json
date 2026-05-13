@@ -12,6 +12,7 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {
+    "@livechat/accounts-sdk": "^2.3.0",
     "@livechat/agent-app-sdk": "^1.12.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
