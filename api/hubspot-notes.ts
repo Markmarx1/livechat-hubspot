@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireLiveChatAuth } from './_lib/livechat-auth';
+import { requireLiveChatAuth } from './_lib/livechat-auth.js';
 
 const HUBSPOT_API = 'https://api.hubapi.com';
 
