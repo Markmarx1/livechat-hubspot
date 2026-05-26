@@ -212,6 +212,41 @@ interface CustomerProfile {
   /** From Agent App SDK — only `chats` is the highlighted live thread; other views must not call update_customer */
   source?: 'chats' | 'archives' | 'customers';
   chat?: { chat_id?: string; groupID?: string; id?: string };
+  session_fields?: Array<Record<string, string>>;
+  last_visit?: {
+    referrer?: string;
+    last_pages?: Array<{ url?: string }>;
+  };
+}
+
+/** HubSpot contact property keys to populate from UTM data */
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_keyword'] as const;
+type UtmKey = (typeof UTM_KEYS)[number];
+
+/** Pull UTM params off the LiveChat customer profile. Prefers session_fields, falls back to last_visit URLs. */
+function extractUtms(profile: CustomerProfile | null | undefined): Partial<Record<UtmKey, string>> {
+  const out: Partial<Record<UtmKey, string>> = {};
+  if (!profile) return out;
+  for (const field of profile.session_fields ?? []) {
+    for (const key of UTM_KEYS) {
+      const v = field[key];
+      if (v && !out[key]) out[key] = String(v);
+    }
+  }
+  const urls = [
+    profile.last_visit?.referrer,
+    ...(profile.last_visit?.last_pages?.map((p) => p.url) ?? []),
+  ].filter((u): u is string => !!u);
+  for (const url of urls) {
+    try {
+      const params = new URL(url).searchParams;
+      for (const key of UTM_KEYS) {
+        const v = params.get(key);
+        if (v && !out[key]) out[key] = v;
+      }
+    } catch { /* ignore unparseable urls */ }
+  }
+  return out;
 }
 
 /** Cache HubSpot contact by customer ID for persistence when switching chats */
@@ -257,32 +292,21 @@ function ContactLookup({ widget, token }: ContactLookupProps) {
 
   // Get current chat's customer profile (SDK keeps one slot; use event payload when provided)
   useEffect(() => {
+    const toLocal = (p: CustomerProfile): CustomerProfile => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      source: p.source,
+      chat: p.chat,
+      session_fields: p.session_fields,
+      last_visit: p.last_visit,
+    });
     const profile = widget.getCustomerProfile() as CustomerProfile | undefined;
-    setCustomerProfile(
-      profile
-        ? {
-            id: profile.id,
-            name: profile.name,
-            email: profile.email,
-            source: profile.source,
-            chat: profile.chat,
-          }
-        : null
-    );
+    setCustomerProfile(profile ? toLocal(profile) : null);
 
     const handler = (p?: CustomerProfile) => {
       const next = p ?? (widget.getCustomerProfile() as CustomerProfile | undefined);
-      setCustomerProfile(
-        next
-          ? {
-              id: next.id,
-              name: next.name,
-              email: next.email,
-              source: next.source,
-              chat: next.chat,
-            }
-          : null
-      );
+      setCustomerProfile(next ? toLocal(next) : null);
     };
     widget.on('customer_profile', handler);
     return () => widget.off('customer_profile', handler);
@@ -461,6 +485,7 @@ function ContactLookup({ widget, token }: ContactLookupProps) {
     setCreating(true);
     setCreateError(null);
     try {
+      const utms = extractUtms(currentProfile as CustomerProfile | undefined);
       const createRes = await fetch(`${API_BASE}/api/hubspot-create`, {
         method: 'POST',
         headers: authHeaders(),
@@ -469,6 +494,7 @@ function ContactLookup({ widget, token }: ContactLookupProps) {
           lastName: createLastName.trim(),
           email: createEmail.trim(),
           bankAffiliate: createBankAffiliate || undefined,
+          utms: Object.keys(utms).length > 0 ? utms : undefined,
         }),
       });
       const text = await createRes.text();

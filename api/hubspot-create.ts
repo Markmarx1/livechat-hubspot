@@ -32,11 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = safeJsonBody(req.body);
-    const { firstName, lastName, email, bankAffiliate } = body as {
+    const { firstName, lastName, email, bankAffiliate, utms } = body as {
       firstName?: string;
       lastName?: string;
       email?: string;
       bankAffiliate?: string;
+      utms?: Record<string, unknown>;
     };
 
     if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
@@ -51,6 +52,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (bankAffiliate?.trim()) {
       properties.bank_affiliate = bankAffiliate.trim();
+    }
+
+    // Only allow the six UTM properties defined in HubSpot for this portal
+    const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_keyword'] as const;
+    if (utms && typeof utms === 'object') {
+      for (const key of UTM_KEYS) {
+        const raw = utms[key];
+        if (typeof raw === 'string' && raw.trim()) {
+          properties[key] = raw.trim().slice(0, 1000);
+        }
+      }
     }
 
     const createRes = await fetch(`${HUBSPOT_API}/crm/v3/objects/contacts`, {
