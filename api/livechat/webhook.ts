@@ -2,9 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const HUBSPOT_API = 'https://api.hubapi.com';
 
-// Six HubSpot contact properties this portal uses for UTM tracking.
-// Source: session_fields set by the LiveChat tracking script on the website.
+// HubSpot contact properties this portal mirrors from LiveChat session_fields.
+// Source: tracking script on the website (UTMs + GA client/session IDs).
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_keyword'] as const;
+const GA_KEYS = ['ga_client_id', 'ga_session_id'] as const;
+const TRACKING_KEYS = [...UTM_KEYS, ...GA_KEYS] as const;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -50,12 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, skipped: 'no chat data' });
     }
 
-    // Find the HubSpot contact ID and UTMs from the customer's session_fields
+    // Find the HubSpot contact ID and tracking values from the customer's session_fields
     const customers = chatData.Customers || {};
     let hubspotContactId: string | undefined;
     let customerName = 'Visitor';
     let customerId: string | undefined;
-    const utms: Record<string, string> = {};
+    const tracking: Record<string, string> = {};
 
     for (const [id, customer] of Object.entries(customers)) {
       const c = customer as { name?: string; email?: string; session_fields?: Record<string, string>[] };
@@ -64,9 +66,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (field.hubspot_contact_id) {
           hubspotContactId = String(field.hubspot_contact_id);
         }
-        for (const key of UTM_KEYS) {
+        for (const key of TRACKING_KEYS) {
           const v = field[key];
-          if (v && !utms[key]) utms[key] = String(v);
+          if (v && !tracking[key]) tracking[key] = String(v);
         }
       }
       customerName = c.name || c.email || 'Visitor';
@@ -152,24 +154,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const note = await noteRes.json();
     console.log(`Transcript saved as HubSpot note ${note.id} for contact ${hubspotContactId} (chat ${chatId})`);
 
-    // Best-effort UTM patch — never fails the webhook
-    const utmEntries = Object.entries(utms);
-    if (utmEntries.length > 0) {
-      const utmProps: Record<string, string> = {};
-      for (const [k, v] of utmEntries) utmProps[k] = v.slice(0, 1000);
+    // Best-effort tracking patch — never fails the webhook
+    const trackingEntries = Object.entries(tracking);
+    if (trackingEntries.length > 0) {
+      const trackingProps: Record<string, string> = {};
+      for (const [k, v] of trackingEntries) trackingProps[k] = v.slice(0, 1000);
       const patchRes = await fetch(
         `${HUBSPOT_API}/crm/v3/objects/contacts/${hubspotContactId}`,
         {
           method: 'PATCH',
           headers: hsHeaders,
-          body: JSON.stringify({ properties: utmProps }),
+          body: JSON.stringify({ properties: trackingProps }),
         }
       );
       if (patchRes.ok) {
-        console.log(`UTMs patched on contact ${hubspotContactId}:`, Object.keys(utmProps).join(','));
+        console.log(`Tracking patched on contact ${hubspotContactId}:`, Object.keys(trackingProps).join(','));
       } else {
         const err = await patchRes.text();
-        console.warn(`UTM patch failed for contact ${hubspotContactId}:`, patchRes.status, err.slice(0, 500));
+        console.warn(`Tracking patch failed for contact ${hubspotContactId}:`, patchRes.status, err.slice(0, 500));
       }
     }
 

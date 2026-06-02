@@ -5,7 +5,9 @@ const HUBSPOT_API = 'https://api.hubapi.com';
 const LIVECHAT_GET_CUSTOMER = 'https://api.livechatinc.com/v3.6/agent/action/get_customer';
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
-type UtmKey = (typeof UTM_KEYS)[number];
+const GA_KEYS = ['ga_client_id', 'ga_session_id'] as const;
+const TRACKING_KEYS = [...UTM_KEYS, ...GA_KEYS] as const;
+type TrackingKey = (typeof TRACKING_KEYS)[number];
 
 function safeJsonBody(body: unknown): Record<string, unknown> {
   if (typeof body === 'object' && body !== null) return body as Record<string, unknown>;
@@ -15,9 +17,9 @@ function safeJsonBody(body: unknown): Record<string, unknown> {
   return {};
 }
 
-// Pulls utm_* values out of a LiveChat customer's session_fields array.
-// session_fields is shaped like [{ "utm_source": "google" }, { "utm_medium": "cpc" }, ...]
-async function readUtmFromLiveChat(customerId: string): Promise<Partial<Record<UtmKey, string>>> {
+// Pulls utm_* and ga_* values out of a LiveChat customer's session_fields array.
+// session_fields is shaped like [{ "utm_source": "google" }, { "ga_client_id": "..." }, ...]
+async function readTrackingFromLiveChat(customerId: string): Promise<Partial<Record<TrackingKey, string>>> {
   const accountId = process.env.LIVECHAT_ACCOUNT_ID;
   const token = process.env.LIVECHAT_ACCESS_TOKEN;
   if (!accountId || !token) return {};
@@ -34,16 +36,16 @@ async function readUtmFromLiveChat(customerId: string): Promise<Partial<Record<U
     });
     if (!res.ok) return {};
     const data = (await res.json()) as { session_fields?: Record<string, string>[] };
-    const utms: Partial<Record<UtmKey, string>> = {};
+    const tracking: Partial<Record<TrackingKey, string>> = {};
     for (const field of data.session_fields || []) {
-      for (const key of UTM_KEYS) {
+      for (const key of TRACKING_KEYS) {
         const val = field[key];
-        if (typeof val === 'string' && val.trim() && !utms[key]) {
-          utms[key] = val.trim();
+        if (typeof val === 'string' && val.trim() && !tracking[key]) {
+          tracking[key] = val.trim();
         }
       }
     }
-    return utms;
+    return tracking;
   } catch {
     return {};
   }
@@ -93,8 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (customerId?.trim()) {
-      const utms = await readUtmFromLiveChat(customerId.trim());
-      for (const [key, val] of Object.entries(utms)) {
+      const tracking = await readTrackingFromLiveChat(customerId.trim());
+      for (const [key, val] of Object.entries(tracking)) {
         if (val) properties[key] = val;
       }
     }
